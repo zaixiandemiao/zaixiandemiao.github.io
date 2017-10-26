@@ -1,0 +1,995 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search> 
+  
+    
+    <entry>
+      <title><![CDATA[HDFS永久性数据结构]]></title>
+      <url>/2017/10/20/hdfs_structer/</url>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>本文主要讲解了HDFS是如何在磁盘上组织永久性数据的，主要从NameNode、Secondary NameNode和DataNode的目录结构以及fsimage和edits文件几个方面进行介绍，了解这些文件的用法有助于进行故障诊断和故障检出。</p>
+<a id="more"></a>
+<h1 id="Namenode的目录结构"><a href="#Namenode的目录结构" class="headerlink" title="Namenode的目录结构"></a>Namenode的目录结构</h1><p>NameNode在被格式化之后，会产生如下的目录结构：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">$&#123;dfs.name.dir&#125;/</div><div class="line">|---current/</div><div class="line">    |--- VERSION</div><div class="line">    |--- edits</div><div class="line">    |--- fsimage</div><div class="line">    |--- fstime</div></pre></td></tr></table></figure>
+<ul>
+<li><code>${dfs.name.dir}</code> 是HDFS配置文件的一个属性名，存储着镜像内容，推荐配置为一个NFS的挂载。</li>
+</ul>
+<p>VERSION文件是一个Java属性文件，其中包含了正在运行的HDFS的版本信息，内容如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">namespaceID=134368444</div><div class="line">cTime=0</div><div class="line">storageType=NAME_NODE</div><div class="line">layoutVersion=-18</div></pre></td></tr></table></figure>
+<ul>
+<li><code>namespaceID</code>属性是HDFS文件系统的唯一标识符，是在文件系统首次格式化(<code>hadoop namenode -format</code>)的时候设置的。datanode在注册到NameNode之前都不知道<code>namespaceID</code>的值，因此NameNode可以通过该属性来鉴别是否为新建的DataNode</li>
+<li><code>cTime</code>属性标记了NameNode的创建时间，对于刚格式化的存储系统，该值为0，；但在文件系统升级之后，该值会更新到新的时间戳</li>
+<li><code>storageType</code>属性说明该存储目录(<code>${dfs.name.dir}/current/</code>)</li>
+<li><code>layoutVersion</code>属性是一个负整数，描述HDFS持久性数据结构（也称布局）的版本号，但是与Hadoop发布包的版本号无关。只要HDFS布局变更，版本号变回递减(-1)，此时，HDFS也需要升级。否则，磁盘仍然使用旧版本的布局，新版本的NameNode无法工作。</li>
+</ul>
+<p>NameNode的存储目录中还包含edits、fsimage、和fstime等二进制文件。这些文件都使用Hadoop的Writable对象作为其序列化格式。</p>
+<h1 id="fsimage和edits-文件"><a href="#fsimage和edits-文件" class="headerlink" title="fsimage和edits 文件"></a>fsimage和edits 文件</h1><p>HDFS客户端执行写操作（创建、移动文件）时，这些操作信息都会记录在edits文件中。NameNode在内存中维护HDFS的元数据；当edits日志被修改时，内存中的元数据也会同步更新，该元数据支持客户端的读请求。</p>
+<p>每次执行写操作时，首先修改edits文件，并进行更新和同步。在NameNode向多个目录写数据时，只有所有的写操作均完毕后方才返回成功代码，以确保不会因为机器故障而丢失(所有操作都在edits文件中，可以在恢复时进行相应操作的重演，类似于write ahead log的思想)。</p>
+<p>fsimage是HDFS元数据的一个永久性的checkpoint。由于fsimage很大(可高达几个GB)，如果频繁写，会拖慢系统的运行，因此，并非每一次写操作都会更新该文件。在NameNode发生故障后，可以先将fsimage文件读入内存进行重构，然后执行edits中记录的各项操作，这也是NameNode启动阶段做的事情。</p>
+<p>fsimage包含了HDFS中所有目录和文件inode的序列化信息。每个inode都是一个文件或目录的元数据内部描述。对文件，包含信息有”副本级别”(replication level)、修改时间和访问时间、访问许可、块大小、组成该文件的块等；对于目录，包含的信息有修改时间、访问许可和配额元数据等信息。</p>
+<p>edits文件会无限增长，这虽然不会拖慢NameNode的运行，但会使得NameNode的启动异常耗时，有违用户的期待，因此，secondary NameNode应用而生。</p>
+<p>Secondary NameNode辅助NameNode创建fsimage文件，它主要的功能有两个</p>
+<ul>
+<li>作为备份，在NameNode故障时升级为NameNode提供服务</li>
+<li>定期合并edits和fsimage文件，防止NameNode故障重启时，由于fsimage长时间没有同步，执行edits的恢复操作很耗时。</li>
+</ul>
+<p>Secondary NameNode的工作步骤如下图所示</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-10-16/61956212.jpg" alt=""></p>
+<ol>
+<li>SecondaryNameNode通知NameNode准备提交edits文件，此时主节点将新的写操作数据记录到一个新的文件edits.new中。</li>
+<li>SecondaryNameNode通过HTTP GET方式获取NameNode的fsimage与edits文件（在SecondaryNameNode的current同级目录下可见到 temp.check-point或者previous-checkpoint目录，这些目录中存储着从namenode拷贝来的镜像文件）。</li>
+<li>Secondary NameNode将获取的fsimage文件载入内存，并逐一执行edits文件的操作，产生新的fsimage文件fsimage.chpt</li>
+<li>SecondaryNameNode用HTTP POST方式发送fsimage.ckpt至NameNode。</li>
+<li>NameNode将fsimage.ckpt与edits.new文件分别重命名为fsimage与edits，然后更新fstime，记录检查点执行的时间，到此整个checkpoint过程到此结束。</li>
+</ol>
+<p>最终，NameNode拥有一个更新的fsimage文件和一个更小的edits文件(在Secondary NameNode执行merge时，NameNode可能收到新的写请求)。在NameNode处在安全模式是，管理员可使用<code>hadoop dfsadmin -saveNamespace</code>命令主动创建checkpoint。</p>
+<p>该过程解释了Secondary NameNode和NameNode拥有相近内存需求的原因，因为Secondary NameNode在合并时需要先将fsimage读入内存中。创建checkpoint的触发条件有两个限制：通常情况下，Secondary NameNode每个一小时(fs.checkpoint.period属性设置，以秒为单位)创建一次；此外，当edits文件达到64MB(fs.checkpoint.size属性设置，以字节为单位)，即使没到一小时，也会创建checkpoint。系统每5分钟检查一次edits的大小。</p>
+<h1 id="Secondary-NameNode的目录结构"><a href="#Secondary-NameNode的目录结构" class="headerlink" title="Secondary NameNode的目录结构"></a>Secondary NameNode的目录结构</h1><p>创建checkpoint不仅为NameNode创建了checkpoint，还使得Secondary NameNode也有了一份备份数据(存储在previous.checkpoint目录中)，此数据可用于NameNode元数据的备份</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">$&#123;fs.checkpoint.dir&#125;/</div><div class="line">|---current/</div><div class="line">|   |--- VERSION</div><div class="line">|   |--- edits</div><div class="line">|   |--- fsimage</div><div class="line">|   |--- fstime</div><div class="line">|---previous.checkpoint/</div><div class="line">    |--- VERSION</div><div class="line">    |--- edits</div><div class="line">    |--- fsimage</div><div class="line">    |--- fstime</div></pre></td></tr></table></figure>
+<p>Secondary NameNode的previous.checkpoint/和current/与NameNode的current目录布局相同。在NameNode发生故障时，可以从Secondary NameNode恢复数据。有两种方法实现。</p>
+<ol>
+<li>将相应目录复制到新的NameNode中</li>
+<li>使用-importCheckpoint选项，启动NameNode守护进程，从而是Secondary NameNode用作新的NameNode。</li>
+</ol>
+<h1 id="DataNode的目录结构"><a href="#DataNode的目录结构" class="headerlink" title="DataNode的目录结构"></a>DataNode的目录结构</h1><p>与NameNode不同，DataNode的存储目录是初始阶段自动创建的，不需额外格式化。结构如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">$&#123;dfs.data.dir&#125;/</div><div class="line">|---current/</div><div class="line">    |--- VERSION</div><div class="line">    |--- blk_&lt;id_1&gt;</div><div class="line">    |--- blk_&lt;id_1&gt;.meta</div><div class="line">    |--- blk_&lt;id_2&gt;</div><div class="line">    |--- blk_&lt;id_2&gt;.meta</div><div class="line">    |--- ...</div><div class="line">    |--- blk_&lt;id_64&gt;</div><div class="line">    |--- blk_&lt;id_64&gt;.meta</div><div class="line">    |--- subdir0/</div><div class="line">    |--- subdir1/</div><div class="line">    |--- ...</div><div class="line">    |--- subdir63/</div></pre></td></tr></table></figure>
+<p>DataNode的VERSION文件与NameNode的VERSION文件类似，如下所示</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">namespaceID=134368444</div><div class="line">storageID=DS-547717739-172.16.85.1-50010-1236720751627</div><div class="line">cTime=0</div><div class="line">storageType=DATA_NODE</div><div class="line">layoutVersion=-18</div></pre></td></tr></table></figure>
+<p>namespaceID、cTime、layoutVersion都与NameNode中的值相同。namespaceID是DataNode首次访问NameNode时获取的。storageID对每个DataNode来说是唯一的(但对单个DataNode中所有存储目录来说则相同)，NameNode可用该值区分不同DataNode。storageType表明该目录是DataNode的存储结构。</p>
+<p>DataNode的current目录中其他文件都有blk_前缀，包括两种类型：HDFS块文件(仅包含原始数据)和块的元数据(.meta后缀)。块文件包含所存储文件的一部分原始数据(文件分块存储)；元数据包括头部(含版本和类型)及该块各区段的一系列校验和。</p>
+<p>当目录中数据块文件增加到一定规模，DataNode会创建一个子目录来存放新的块和元数据信息。如果当前目录存储到64个(由dfs.datanode.numblocks设置)，就创建一个子目录。最终设计一个高扇出的目录树，即使快数量很多，但目录树的层数也不多。</p>
+<p>如果dfs.data.dir属性指定不同磁盘上的多个目录，数据块会以轮转(round-robin)的方式写到各个目录中。同一个DataNode上的每个磁盘的块不重复，不同DataNode之间的块才可能重复（如三备份原则保证同一机架的两个DataNode备份，不同机架上有一个DataNode备份）</p>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> hdfs目录结构 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[VMware虚拟机添加磁盘]]></title>
+      <url>/2017/10/19/vmware_addDisk/</url>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近在搞使用CDH安装Hadoop的时候，需要搭建一个内网的yum源(参考<a href="http://www.wangjialong.cc/2017/09/14/private_yum/">使用httpd搭建内网yum源</a>)，并把CDH的RPM包放上去，方便虚拟机内网使用yum进行安装。由于我最开始虚拟机内网yum源只设置了20G的磁盘，硬盘剩余空间已经不够用，因此考虑给该虚拟机添加硬盘，并将该硬盘挂载到httpd的子目录上，在该磁盘上单独放CDH的包。</p>
+<a id="more"></a>
+<h1 id="新建硬盘"><a href="#新建硬盘" class="headerlink" title="新建硬盘"></a>新建硬盘</h1><p>VMware添加硬盘非常简单，只需要鼠标右键想要添加硬盘的虚拟机，然后点击添加，选择硬盘，根据向导进行添加即可。</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-10-19/45118131.jpg" alt=""></p>
+<p>图形化的向导使用非常方便，在此不作赘述，从上图可以看出，我已经添加了一个20G的硬盘到该虚拟机上，在上图的设备名为硬盘2.</p>
+<h1 id="在虚拟机上查看磁盘信息"><a href="#在虚拟机上查看磁盘信息" class="headerlink" title="在虚拟机上查看磁盘信息"></a>在虚拟机上查看磁盘信息</h1><p>启动该虚拟机，在命令行使用<code>fdisk</code>命令查看添加的磁盘是否存在。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">[root@master ~]# fdisk -l | grep sd</div><div class="line">Disk /dev/sda: 21.5 GB, 21474836480 bytes, 41943040 sectors</div><div class="line">/dev/sda1   *        2048     2099199     1048576   83  Linux</div><div class="line">/dev/sda2         2099200    41943039    19921920   8e  Linux LVM</div><div class="line">Disk /dev/sdb: 21.5 GB, 21474836480 bytes, 41943040 sectors</div></pre></td></tr></table></figure>
+<p>打印出的/dev/sdb即是我添加的硬盘，由于它是新添加的硬盘，所以没有像sda那样的分区( 即sda1、sda2)。如果有在Windows上使用磁盘管理器的经验的话，就会知道新添加的硬盘是无法直接使用的，需要给该硬盘进行分区，使得Linux系统“认识”它。</p>
+<h1 id="fdisk工具添加分区"><a href="#fdisk工具添加分区" class="headerlink" title="fdisk工具添加分区"></a>fdisk工具添加分区</h1><p>根据上一步的结果，我们知道新加的硬盘名称为/dev/sdb， 因此我们可以直接使用<code>fdisk</code>给该硬盘进行分区。<code>fdisk</code>是Linux上一个类似于Windows上的磁盘管理器的工具，它简便易用，可以方便的进行硬盘分区。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line">[root@master ~]# fdisk /dev/sdb</div><div class="line">Welcome to fdisk (util-linux 2.23.2).</div><div class="line"></div><div class="line">Changes will remain in memory only, until you decide to write them.</div><div class="line">Be careful before using the write command.</div><div class="line"></div><div class="line"></div><div class="line">Command (m for help): m</div><div class="line">Command action</div><div class="line">   a   toggle a bootable flag</div><div class="line">   b   edit bsd disklabel</div><div class="line">   c   toggle the dos compatibility flag</div><div class="line">   d   delete a partition</div><div class="line">   g   create a new empty GPT partition table</div><div class="line">   G   create an IRIX (SGI) partition table</div><div class="line">   l   list known partition types</div><div class="line">   m   print this menu</div><div class="line">   n   add a new partition</div><div class="line">   o   create a new empty DOS partition table</div><div class="line">   p   print the partition table</div><div class="line">   q   quit without saving changes</div><div class="line">   s   create a new empty Sun disklabel</div><div class="line">   t   change a partition&apos;s system id</div><div class="line">   u   change display/entry units</div><div class="line">   v   verify the partition table</div><div class="line">   w   write table to disk and exit</div><div class="line">   x   extra functionality (experts only)</div><div class="line"></div><div class="line">Command (m for help):</div></pre></td></tr></table></figure>
+<p>输入<code>m</code>可查看提示，根据提示可知，输入<code>n</code>可以添加一个新分区。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line">[root@master ~]# fdisk /dev/sdb</div><div class="line">Welcome to fdisk (util-linux 2.23.2).</div><div class="line"></div><div class="line">Changes will remain in memory only, until you decide to write them.</div><div class="line">Be careful before using the write command.</div><div class="line"></div><div class="line"></div><div class="line">Command (m for help): n</div><div class="line">Partition type:</div><div class="line">   p   primary (1 primary, 0 extended, 3 free)</div><div class="line">   e   extended</div><div class="line">Select (default p):</div><div class="line">Using default response p</div><div class="line">Partition number (2-4, default 2):</div><div class="line">First sector (10485760-41943039, default 10485760):</div><div class="line">Using default value 10485760</div><div class="line">Last sector, +sectors or +size&#123;K,M,G&#125; (10485760-41943039, default 41943039):</div><div class="line">Using default value 41943039</div><div class="line">Partition 2 of type Linux and of size 15 GiB is set</div><div class="line"></div><div class="line">Command (m for help):</div></pre></td></tr></table></figure>
+<p>输入<code>n</code>后，会有一个向导指引创建一个新分区，分为以下几步。</p>
+<ol>
+<li>选择分区类型，根据上面的信息可以看出，默认是 <code>primary</code>类型</li>
+<li>选择分区号，由于我已经创建了一个分区，因此它提示我输入2-4内的整数，当前默认为2，创建后的分区为/dev/sdb2。硬盘最多可以分为4个分区，这个跟MBR和扇区的知识有关系，大概是因为硬盘为分区表保留了64字节，而每个分区参数占16个字节，因此只能存4个分区表，但由于分区可以分为主分区和拓展分区，借助拓展分区，可以分4个以上的分区，可以把拓展分区想象成指向了一块新的硬盘。最新的电脑一般默认采用GPT分区表，几乎没有限制（128个），参考<a href="https://www.ithome.com/html/win8/58192.htm" target="_blank" rel="external">MBR和GPT表</a></li>
+<li>选择所创建分区的起始位置，推荐默认，因为这样可以从硬盘剩余空间的开头创建新分区。</li>
+<li>选择分区的终止扇区位置，只能输入提示范围内的整数值，这个需要进行简单的计算，由于我新增的硬盘为20G,而我希望新分区为5G，因此将最后一个扇区41943039除以4，再加上3步骤中的起始扇区位置即可。</li>
+</ol>
+<p>上面四步结束后，新的分区已经创建成功，但该分区表目前还在内存中存储，并没有写入硬盘，需要输入<code>w</code>命令，将分区表写入，此时fdisk命令返回。</p>
+<h1 id="格式化新分区"><a href="#格式化新分区" class="headerlink" title="格式化新分区"></a>格式化新分区</h1><p>新分区是没有任何格式的，因此操作系统无法进行读写，因此需要将新分区进行格式化。</p>
+<p>查看新分区是否创建成功</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">[root@master ~]# ll /dev/sd*</div><div class="line">brw-rw----. 1 root disk 8,  0 Oct 17 20:31 /dev/sda</div><div class="line">brw-rw----. 1 root disk 8,  1 Oct 17 20:31 /dev/sda1</div><div class="line">brw-rw----. 1 root disk 8,  2 Oct 17 20:31 /dev/sda2</div><div class="line">brw-rw----. 1 root disk 8, 16 Oct 19 15:04 /dev/sdb</div><div class="line">brw-rw----. 1 root disk 8, 17 Oct 19 15:04 /dev/sdb1</div></pre></td></tr></table></figure>
+<p>可以看到，已经有一个<code>/dev/sdb1</code>的设备了，现在进行格式化，centos系统下，格式化ext4的格式。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">[root@master ~]# mkfs.ext4 /dev/sdb1</div></pre></td></tr></table></figure>
+<p>新分区已经格式化成功，下面可以挂载了。</p>
+<h1 id="挂载新分区"><a href="#挂载新分区" class="headerlink" title="挂载新分区"></a>挂载新分区</h1><p>因为我使用的是httpd搭建的内网yum源，需要放置CDH的文件目录为<code>/var/www/html/cdh</code>，因此我需要将新分区挂载到该目录下.</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">[root@master ~]# mount /dev/sdb1 /var/www/html/cdh</div></pre></td></tr></table></figure>
+<p>已经挂载了5G大小的硬盘分区到该目录了，下面可以将CDH的包解压到该目录下了。</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> VMware </tag>
+            
+            <tag> 新增硬盘 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[MapReduce中的shuffle详解]]></title>
+      <url>/2017/10/10/shuffle/</url>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>shuffle在某些情况下，表达的意义为reduce任务获取map输出的这部分过程，也就是通常意义上的“map-shuffle-reduce”。如果是这种情况下，shuffle表示的是将map输出的键值对，按照key值进行了一个groupby操作，最后得到&lt; key, list[key] &gt;的过程。而在这里，shuffle包含了从map输出到reducer的整个过程，包括了写入磁盘、分区、排序等步骤，有利于理解工作机制，优化MapReduce程序。</p>
+<a id="more"></a>
+<h1 id="shuffle简述"><a href="#shuffle简述" class="headerlink" title="shuffle简述"></a>shuffle简述</h1><p><img src="http://ow9czedj7.bkt.clouddn.com/17-10-9/56739194.jpg" alt="shuffle"></p>
+<p>由上图(<em>引用自<a href="http://www.cnblogs.com/yangyquin/p/5021234.html" target="_blank" rel="external">shuffle和排序</a></em>)所示，shuffle是一个横跨map task 和reduce task的过程，它是map 和 reduce的一个数据桥梁，负责将map输出作为输入传给reducer。在map端包括了写入缓冲区，溢出到磁盘，分区与排序等步骤；在reduce端则包括了复制数据、归并数据、reduce阶段等步骤。</p>
+<h1 id="map端"><a href="#map端" class="headerlink" title="map端"></a>map端</h1><p>map函数产生输出时，出于效率的原因并不会直接写入硬盘，而是先放到一个环形内存缓存区中，并将缓存的数据按照key值进行一个预排序。缓冲区默认为100MB，该值可以通过io.sort.mb属性来调整。一旦达到阈值(io.sort.spill.percent, 默认为0.8)，则后台进程开始将内容溢出到磁盘。溢出过程中，map输出仍写入缓冲区，在此期间缓冲区被填满，则会将map阻塞，知道该溢出过程结束。</p>
+<p>每个溢出过程都会产生一个文件存到mapred.local.dir属性指定的目录中，在上图中，共产生了三个溢出到磁盘的文件。在溢出到磁盘之前，会根据reducer的数量划分分区，如图中共划分了3个分区，每个分区中，都按键进行内排序，如果指定了combiner，则在排序后的输出上进行，以减少写到磁盘和传递给reducer的数据。上图中每个溢出文件都有3个分区，每个分区内数据都是排好序的。</p>
+<p>当map任务结束后，会将溢出到磁盘的文件进行一个合并，如图中，将3个文件合并成了一个文件，合并好的文件中每个分区内的数据也是排好序的。在map输出到磁盘时，可以通过设置mapred.compress.map.output为true和指定mapred.map.output.compression.codec指定压缩格式，这样可以加快溢出到磁盘的速度。</p>
+<p>reducer是通过http方式获得输出文件的分区的，如上图中，第一个reducer获取了第一个分区。</p>
+<h1 id="reduce端"><a href="#reduce端" class="headerlink" title="reduce端"></a>reduce端</h1><p>reducer会将各个map task上最后溢出的那个文件的对应分区复制到本地，由于map任务的完成时间可能不同，因此只要一个任务完成，reduce任务就开始复制其输出。reduce可以并行的复制map的输出，默认为5个线程，可以通过设置mapred.reduce.parallel.copies属性来改变。对于指定的作业，jobtracker（或App master）知道map输出和tasktracker的映射关系。reducer线程定期询问jobtracker以获取map输出的位置，直到获取全部的输出位置</p>
+<p>复制完所有map输出后，就进入到上图中的“sort phase”，但它并不是一个严格意义上的排序过程，可以将它理解成归并排序中的merge过程，将若干个排好序的序列，归并成一个有序文件。这个过程根据合并因子(io.sort.factor设置，默认为10)进行，如果有50个map的输出，而合并因子为10，则每次最多合并10个map输出，因此最后会有5个中间文件。</p>
+<p>在reduce阶段，直接将上面的5个中间文件合并成一个已排序的文件输入给reduce函数，最后的合并不需要磁盘的读写，只需要内存和磁盘片段的配合即可。</p>
+<p>在“sort phase”时，由于最后一趟的合并总是将结果直接输入给reduce，而没有磁盘写入过程，因此可以据此进行优化。比如如果合并因子为10，有40个文件，此时不会再四趟中每次合并10个文件而得到4个文件，相反，第一趟只合并4个文件，随后的三趟每次合并10个文件，在最后一趟中，4个已合并的文件（4，10，10，10）和6个未合并的文件合并给reduce函数，这并不改变合并次数，却使得合并过程中磁盘只写入了4+10+10+10=34个文件，从而减少了磁盘的数据量。</p>
+<h1 id="结束语"><a href="#结束语" class="headerlink" title="结束语"></a>结束语</h1><p>本文是结合《Hadoop权威指南》shuffle和排序章节整理的读书笔记，方便日后的查阅。shuffle是MapReduce中数据传输的核心步骤，深入理解该部分的实现细节，有助于MapReduce程序的优化，通过减少网络上的数据传输，可以有效的提高MapReduce程序的执行效率。</p>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> MapReduce </tag>
+            
+            <tag> shuffle </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[Zookeeper是动物管理员吗]]></title>
+      <url>/2017/09/29/zookeeper1/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。</p>
+<a id="more"></a>
+<h1 id="Zookeeper到底是不是动物管理员？"><a href="#Zookeeper到底是不是动物管理员？" class="headerlink" title="Zookeeper到底是不是动物管理员？"></a>Zookeeper到底是不是动物管理员？</h1><p>这个问题的答案可以从Zookeeper的的官网标志图初探端倪。</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
+<p>由上图，Zookeeper是一个穿着工装，拿着铁锹的工人啊，这不符合管理员的形象吧，管理员不应该是西装革履的吗？好吧，有些牵强，那我们来看看keeper这个词的翻译，使用百度在线翻译的结果如下：</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/36748004.jpg" alt=""></p>
+<p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
+<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
+<h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
+<p><img src="http://static.oschina.net/uploads/img/201308/08171344_cqXs.jpg" alt="zookeeper roles"></p>
+<ul>
+<li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
+</ul>
+<p>集群模型如下:</p>
+<p><img src="http://static.oschina.net/uploads/img/201308/08171345_l5K3.jpg" alt="zookeeper service"></p>
+<p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
+<h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
+<h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
+<p><img src="http://www.wuzesheng.com/wp-content/uploads/2013/12/zookeeper-tree.jpg" alt="image"></p>
+<p>ZooKeeper数据模型的结构与Unix文件系统很类似，整体上可以看作是一棵树，每个节点称做一个ZNode。每个ZNode都可以通过其路径唯一标识，图中每个节点左侧即为其路径唯一标识。</p>
+<p>注：<br>这里的ZNode可以理解成既是Unix里的文件，又是Unix里的目录。因为每个ZNode不仅本身可以写数据（相当于Unix里的文件），还可以有下一级文件或目录（相当于Unix里的目录）。</p>
+<p>在ZooKeeper中，ZNode可以分为持久节点和临时节点两类。</p>
+<p><strong>持久节点</strong></p>
+<p>所谓持久节点是指一旦这个ZNode被创建了，除非主动进行ZNode的移除操作，否则这个ZNode将一直保存在ZooKeeper上。</p>
+<p><strong>临时节点</strong></p>
+<p>临时节点的生命周期跟客户端会话绑定，一旦客户端会话失效，那么这个客户端创建的所有临时节点都会被移除。</p>
+<h2 id="Watcher"><a href="#Watcher" class="headerlink" title="Watcher"></a>Watcher</h2><p>Watcher（事件监听器），是ZooKeeper中一个很重要的特性。ZooKeeper允许用户在指定节点上注册一些Watcher，并且在一些特定事件触发的时候，ZooKeeper服务端会将事件通知到感兴趣的客户端上去。该机制是ZooKeeper实现分布式协调服务的重要特性。</p>
+<h1 id="管理者-or-协调者"><a href="#管理者-or-协调者" class="headerlink" title="管理者 or 协调者"></a>管理者 or 协调者</h1><p>通过Zookeeper的数据节点（临时节点特性）和watcher的组合，可以满足诸如服务发布/订阅、命名服务、master选举、分布式锁等功能。而Zookeeper之所以是keeper而不是manager，正是因为它在Hadoop生态中的两大功能是选举和元数据存储，才使得它有了分布式协调者的称号。</p>
+<p>元数据指的是配置信息、服务注册列表等，这使得Zookeeper更像是一个分布式的注册表。当client需要使用Zookeeper时，如HBase Master需要选举一个主节点，那么他们就并发的去Zookeeper上创建一个临时节点（节点名称一样），Zookeeper的分布式锁可以保证只有一个client创建成功，最后创建成功的那个节点，就当选为主节点。</p>
+<p>Zookeeper在Hadoop中的应用是HDFS和YARN的HA，在HBase中的应用有选举与主备切换、系统容错（RegionServer挂掉后，HMaster获知）、Region状态信息的管理。下面我们来看一下Zookeeper是如何让HMaster获知RegionServer挂掉的信息的。</p>
+<p>当HBase启动时，每个RegionServer都会到ZooKeeper的/hbase/rs节点下创建一个信息节点（临时节点，下文中，我们称该节点为”rs状态节点”），例如/hbase/rs/[Hostname]，同时，HMaster会对这个节点注册监听。当某个 RegionServer 挂掉的时候，ZooKeeper会因为在一段时间内无法接受其心跳（即 Session 失效），而删除掉该 RegionServer 服务器对应的 rs 状态节点。与此同时，HMaster 则会接收到 ZooKeeper 的 NodeDelete 通知，从而感知到某个节点断开，并立即开始容错工作。也就是说，Zookeeper是通过心跳机制来维护临时节点信息的，如果心跳发生了timeout，则Zookeeper删除该临时节点，然后通知注册过该临时节点监听的HMaster，所以Zookeeper默认临时节点删除后，该RegionServer处于无法工作状态，至于是网络延时原因还是该RegionServer确实挂掉了，Zookeeper不管。</p>
+<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>Zookeeper在Hadoop生态中十分重要，但它并没有上升到管理员的高度，Hadoop中使用Zookeeper服务的组件都有自己的master（NameNode、ResourManager、HMaster），各组件视自己的需求，交付给Zookeeper不同程度的权力。NameNode在实现HA的时候，需要用到Zookeeper的选举和watcher功能，因此交付给Zookeeper两个NameNode，让它来决定谁为Active；YARN的HA也是如此。HMaster交给Zookeeper的权力比较大，HMaster选举与主备切换、系统容错、RootRegion管理、Region状态管理和分布式SplitWAL任务管理等都交给了Zookeeper，让Zookeeper来管理HMaster的主备以及RegionServer信息等。Zookeeper相当于是古代的丞相，皇帝（NameNode、HMaster）给它多少权力，它就执行多大的功能。或许有一天，Zookeeper会成为Hadoop生态的“管仲”、“商鞅”，而那一天会不会实现，就要看Hadoop生态的发展了。。。</p>
+<h1 id="参考博客"><a href="#参考博客" class="headerlink" title="参考博客"></a>参考博客</h1><ul>
+<li><a href="http://www.wangjialong.cc/2017/09/27/etcd&amp;zookeeper/">Zookeeper与etcd的对比</a></li>
+<li><a href="http://linbingdong.com/2017/01/10/ZooKeeper原理及其在Hadoop和HBase中的应用/" target="_blank" rel="external">ZooKeeper原理及其在Hadoop和HBase中的应用</a></li>
+<li><a href="http://cailin.iteye.com/blog/2014486" target="_blank" rel="external">Zookeeper原理</a></li>
+</ul>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> zookeeper </tag>
+            
+            <tag> HBase </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[LeetCode 55 Jump Game从回溯到动态规划]]></title>
+      <url>/2017/09/29/leetcode55/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>动态规划是一个降低时间的很有效的方法，通常一个可以使用递归从上到下来解决的题目，必定可以转化为动态规划，从下往上计算，并通过设置一个数组存放子问题的解，来降低问题的求解步骤。LeetCode上的第55题可以使用回溯法和动态规划来解决，但回溯法会造成栈溢出，下面讲解我的解题思路。</p>
+<a id="more"></a>
+<h1 id="题目介绍"><a href="#题目介绍" class="headerlink" title="题目介绍"></a>题目介绍</h1><p>给定一个正整数的数组，你起始的位置位于数组的第一个下标处（也就是0），数组中的每个元素代表在该位置可以跳跃的最大距离（只能向index增加的方向跳跃），判断是否有一条跳跃路径，可以使得你跳到最后一个下标处（也就是length-1）。<br>示例：<br>A = [2,3,1,1,4], return true.</p>
+<p>A = [3,2,1,0,4], return false.</p>
+<p>原题链接 <a href="https://leetcode.com/problems/jump-game/description/" target="_blank" rel="external">55. Jump Game</a></p>
+<h1 id="题目分析"><a href="#题目分析" class="headerlink" title="题目分析"></a>题目分析</h1><p>相信玩过类似大富豪这样的游戏的同学，理解起这个问题来不会太困难。它相当于有一个起点、一个目的地，从起点到目的地是一个个的格子（只能跳整数个），每个格子规定了当前格子能够跳跃的最大值，让我们来求是否有一条路径可以从起点到终点，文字不太直观，下面我们通过图来展示一下上面的示例。</p>
+<p>当 A = [2,3,1,1,4]</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/90212410.jpg" alt=""></p>
+<p>由上图，从0的位置最大可以跳2格，选择跳一格，到达下标为1的位置，此时最大可以跳3格，选择跳3格到达终点。因此，应该返回 true。A = [3,2,1,0,4]的情况在此不再做分析。下面开始正式解题。</p>
+<h1 id="Round-1"><a href="#Round-1" class="headerlink" title="Round 1"></a>Round 1</h1><p>第一个回合，根据从起点到终点的特性，理所当然的想到了将问题转化为图问题，于是，我画了下图。</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/75746144.jpg" alt=""></p>
+<p>圆形中的数字代表下标，箭头为单向的，因此，问题转变为从0到4的图遍历。但刚定义为Node类我就卡住了。两个原因：</p>
+<ul>
+<li>每个节点的孩子节点（单向箭头指向的节点）个数不确定</li>
+<li>太占内存了，每个node都是一个对象</li>
+</ul>
+<p>Round 1， defeated ！</p>
+<h1 id="Round-2"><a href="#Round-2" class="headerlink" title="Round 2"></a>Round 2</h1><p>虽然上面的图使我的图遍历解法宣告失败，但是却给了我另一个灵感，就是树遍历的深度优先算法，当到达叶子节点的时候，算法开始回溯，直到回到一个有没有遍历到的叶子节点，再接着向下遍历。</p>
+<p>此问题也可以使用回溯算法进行求解，算法的核心思想如下：</p>
+<ol>
+<li>从index的位置开始，取得当前能够跳跃的最大值n</li>
+<li>让i从1到n开始遍历，循环判断当前跳i步，到达的位置是否可以到达终点</li>
+<li>若跳i步后，index &gt;最后的位置，则可以到达终点，返回true，否则，递归判断跳i步之后的位置是否可以到达终点</li>
+<li>若递归返回false的话，则让i+1,进行下一步循环判断是否可以到达终点</li>
+<li>若所有的循环和递归都返回后还没有返回true，则返回false</li>
+</ol>
+<p>上面那段叙述可能连我自己也看不懂啥意思，没关系，“talk is cheap, show me the code”，下面立即上代码，一目了然。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">import</span> java.util.Arrays;</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">lc55</span> </span>&#123;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span>[] nums = &#123;<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">4</span>&#125;;</div><div class="line">        lc55 test = <span class="keyword">new</span> lc55();</div><div class="line">        System.out.println(<span class="string">"res ? "</span> + test.canJump(nums));</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">boolean</span>[] flag;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">canJump</span><span class="params">(<span class="keyword">int</span>[] nums)</span> </span>&#123;</div><div class="line">        flag = <span class="keyword">new</span> <span class="keyword">boolean</span>[nums.length];</div><div class="line">        Arrays.fill(flag, <span class="keyword">true</span>);</div><div class="line">        <span class="keyword">if</span> (check(nums, <span class="number">0</span>)) &#123;</div><div class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">check</span><span class="params">(<span class="keyword">int</span>[] nums, <span class="keyword">int</span> index)</span> </span>&#123;</div><div class="line">        <span class="keyword">if</span>(index &lt; <span class="number">0</span> || !flag[index]) &#123;</div><div class="line">            flag[index] = <span class="keyword">false</span>;</div><div class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="keyword">if</span>(index + nums[index] + <span class="number">1</span> &gt;= nums.length)</div><div class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">        <span class="keyword">int</span> n = nums[index];</div><div class="line">        <span class="keyword">while</span>(n &gt; <span class="number">0</span>) &#123;</div><div class="line">            <span class="keyword">if</span> (check(nums, index + n)) &#123;</div><div class="line">                <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">            &#125;</div><div class="line">            --n;</div><div class="line">        &#125;</div><div class="line">        flag[index] = <span class="keyword">false</span>;</div><div class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>上面的代码应当返回false，结果正确，于是粘贴到LeetCode上run了一下，期望输出一致，赶紧提交吧，傻眼了，栈溢出。。。</p>
+<p>回溯算法由于频繁的递归调用，而每次方法的调用都需要进行压榨动作，当方法的嵌套调用过深的时候，就形成了栈溢出问题，虽然算法是正确的，然而AC不了啊，下面继续优化。</p>
+<h1 id="Round-3"><a href="#Round-3" class="headerlink" title="Round 3"></a>Round 3</h1><p>解决回溯问题的栈溢出，我们一下子就想到了将递归变成循环，因为循环是递归的逆过程。细心的朋友可能发现了，上面代码中，我已经用flag数组来存放子问题的解了，当子问题为false的时候，无需在进行判断，直接返回false，因为我们之前已经求解了一遍了。因此，结合循环和子问题两个思路，我想到了使用动态规划来解决栈溢出的问题。</p>
+<p>动态规划最重要的就是确定子问题了，通过之前的分析，不难看出，如果从3的位置可以调到终点，而从0的位置可以跳到3的位置的话，那么从0的位置也可以跳到终点。因此，我们的动态规划算法应当是从后向前遍历的，递推公式为<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">flag[i] = flag[i+1] || flag[i+2] || ... || flag[i+n]</div></pre></td></tr></table></figure></p>
+<p>其中n为i位置可以跳的最大步数，有一个特殊情况，如果i+n &gt; last_index的话，则可以直接判断flag[i]为true。<br>有了递推公式，不难写出相应的代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">import</span> java.util.Arrays;</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">lc55</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span>[] nums = &#123;<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">4</span>&#125;;</div><div class="line">        lc55 test = <span class="keyword">new</span> lc55();</div><div class="line">        System.out.println(<span class="string">"res ? "</span> + test.canJump(nums));</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">boolean</span>[] flag;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">canJump</span><span class="params">(<span class="keyword">int</span>[] nums)</span> </span>&#123;</div><div class="line">        flag = <span class="keyword">new</span> <span class="keyword">boolean</span>[nums.length];</div><div class="line">        Arrays.fill(flag, <span class="keyword">false</span>);</div><div class="line"></div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=nums.length-<span class="number">1</span>; i&gt;=<span class="number">0</span>; i--) &#123;</div><div class="line">            <span class="keyword">if</span>(i + nums[i] + <span class="number">1</span> &gt;= nums.length) &#123;</div><div class="line">                flag[i] = <span class="keyword">true</span>;</div><div class="line">            &#125; <span class="keyword">else</span> &#123;</div><div class="line">                <span class="keyword">int</span> n = nums[i];</div><div class="line">                <span class="keyword">while</span>(n&gt;<span class="number">0</span>) &#123;</div><div class="line">                    <span class="keyword">if</span> (((i + n) &lt; nums.length ) &amp;&amp; flag[i + n]) &#123;</div><div class="line">                        flag[i] = <span class="keyword">true</span>;</div><div class="line">                        n = <span class="number">0</span>;</div><div class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span>(i+n &gt; nums.length) &#123;</div><div class="line">                        flag[i] = <span class="keyword">true</span>;</div><div class="line">                        n = <span class="number">0</span>;</div><div class="line">                    &#125; <span class="keyword">else</span> &#123;</div><div class="line">                        --n;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> flag[<span class="number">0</span>];</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>这下应该稳了吧，开开心心提交上去，栈溢出倒是解决了，但是出现了一个新的问题，超时！ 纳尼？！ 动态规划不是不计算子问题了吗？怎么还会超时呢，这不科学！</p>
+<h1 id="Final-Round"><a href="#Final-Round" class="headerlink" title="Final Round"></a>Final Round</h1><p>通过查看LeetCode上提交的错误信息，可以发现测试用例形如 [29999,29998,29997,…,4,3,2,1,1,0,0]。 聪明的你可能已经发现了，数字从后往前每一步都只加一，也就是说后一格为false的话，那向前一格，数字只增加一的话，那前一格也必定为false啊，文字不清楚，下面通过画图分析。</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/77658785.jpg" alt=""></p>
+<p>由上图可知，2所在的格子已经求得为false，i–到达3所在的格子，由于3后面的为2的格子求得为false，所以两个1所在的格子也为false，因此3在求解flag的时候，不需要求解2、1、1这三个格子，因为他们都为false。总结就是如果i所在的格子最大跳n格，i+1所在的格子最大跳n1格，而i+1的格子为false，则只需要求解从i+2+n1格到i+n格的子问题即可，上图中两个0所在的格子。根据这个思想，可以得到下面的优化的代码。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">import</span> java.util.Arrays;</div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">lc55</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span>[] nums = &#123;<span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">0</span>, <span class="number">4</span>&#125;;</div><div class="line">        lc55 test = <span class="keyword">new</span> lc55();</div><div class="line">        System.out.println(<span class="string">"res ? "</span> + test.canJump(nums));</div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">boolean</span>[] flag;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">canJump</span><span class="params">(<span class="keyword">int</span>[] nums)</span> </span>&#123;</div><div class="line">        flag = <span class="keyword">new</span> <span class="keyword">boolean</span>[nums.length];</div><div class="line">        Arrays.fill(flag, <span class="keyword">false</span>);</div><div class="line"></div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=nums.length-<span class="number">1</span>; i&gt;=<span class="number">0</span>; i--) &#123;</div><div class="line">            <span class="keyword">if</span>(i + nums[i] + <span class="number">1</span> &gt;= nums.length) &#123;</div><div class="line">                flag[i] = <span class="keyword">true</span>;</div><div class="line">            &#125; <span class="keyword">else</span> &#123;</div><div class="line">                <span class="keyword">int</span> n = nums[i];</div><div class="line">                <span class="keyword">if</span>(n &gt; <span class="number">0</span>)</div><div class="line">                    flag[i] = flag[i + <span class="number">1</span>];</div><div class="line">                <span class="keyword">if</span>(n - nums[i+<span class="number">1</span>] &lt; <span class="number">2</span>) &#123; <span class="comment">//若n只比nums[i+1]大1，则flag[i] = flag[i + 1];</span></div><div class="line">                    n = <span class="number">0</span>;</div><div class="line">                &#125;</div><div class="line">                <span class="keyword">while</span>(n - <span class="number">1</span> &gt; nums[i+<span class="number">1</span>]) &#123;   <span class="comment">//只计算从i+2+n1格到i+n格的子问</span></div><div class="line">                    <span class="keyword">if</span> (((i + n) &lt; nums.length ) &amp;&amp; flag[i + n]) &#123;</div><div class="line">                        flag[i] = <span class="keyword">true</span>;</div><div class="line">                        n = <span class="number">0</span>;</div><div class="line">                    &#125; <span class="keyword">else</span> <span class="keyword">if</span>(i+n &gt; nums.length) &#123;</div><div class="line">                        flag[i] = <span class="keyword">true</span>;</div><div class="line">                        n = <span class="number">0</span>;</div><div class="line">                    &#125; <span class="keyword">else</span> &#123;</div><div class="line">                        --n;</div><div class="line">                    &#125;</div><div class="line">                &#125;</div><div class="line">            &#125;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> flag[<span class="number">0</span>];</div><div class="line">    &#125;</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>再次提交代码，终于Accept了，看到绿色的返回值真是开心</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>分析问题和解决问题的过程是最让人兴奋的，遇到一下子解决不了的问题时，不要轻易的放弃，尝试着继续改进一下，等看到绿色的AC时，往往是最开心的一刻。而即使自己最后真的败下阵来，也没关系，这时候去看大神的解法，会让自己有更多的感受和收获，记忆也会更加的牢固。好了，毒鸡汤撒完了，我去看大神界面工整且逻辑清晰的代码去了。</p>
+]]></content>
+      
+        <categories>
+            
+            <category> algorithm </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> Java </tag>
+            
+            <tag> LeetCode、动态规划 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[zookeeper与etcd的类比]]></title>
+      <url>/2017/09/27/etcd&amp;zookeeper/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>最近在看到Pachyderm的介绍时，看到作者拿YARN和Kubernetes做类比，拿Zookeeper和etcd做对比。YARN和Kubernetes的类比还相对比较好理解，毕竟他们都有资源管理和调度的职能，只不过YARN上运行的对象是JVM，而Kubernetes上运行的是容器。但是拿Zookeeper和etcd来类比我就有些不懂了，在我之前的概念里zookeeper并不是一个存储组件啊，因此有了本文的过程。</p>
+<a id="more"></a>
+<h1 id="Zookeeper和etcd可以做类比吗？"><a href="#Zookeeper和etcd可以做类比吗？" class="headerlink" title="Zookeeper和etcd可以做类比吗？"></a>Zookeeper和etcd可以做类比吗？</h1><p>etcd的官网介绍是一个分布式的K/V存储，而Zookeeper的官网介绍是一个高度可用的分布式协调者。看起来他们做的事情完全不同啊，那我们来比较一下功能介绍。</p>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>etcd</th>
+<th>Zookeeper</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>分布式锁</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>watcher</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>一致性算法</td>
+<td>raft</td>
+<td>zab</td>
+</tr>
+<tr>
+<td>选举</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>元数据(metadata)存储</td>
+<td>有</td>
+<td>有</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>watcher指的是订阅/通知，当一个值改变时，通知订阅过的节点，在etcd中是K/V值对的改变，在Zookeeper中是znode的改变（值改变、节点删除等）</li>
+<li>raft和zab都是paxos算法的变形，都是为了解决分布式系统中的读写一致性问题</li>
+<li>选举都是通过相应的一致性算法实现的</li>
+</ul>
+<blockquote>
+<p>功能总结的不到位，欢迎补充</p>
+</blockquote>
+<p>从功能上看，他们干的事好像也都差不多，分布式的一致性、选举算法、分布式锁，那么，我们来看一下各自的典型应用吧。</p>
+<table>
+<thead>
+<tr>
+<th>应用场景</th>
+<th>etcd</th>
+<th>Zookeeper</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>发布与订阅（配置中心）</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>软负载均衡</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>命名服务(Naming Service)</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>服务发现</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>分布式通知/协调</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>集群管理与Master选举</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>分布式锁</td>
+<td>有</td>
+<td>有</td>
+</tr>
+<tr>
+<td>分布式队列</td>
+<td>有</td>
+<td>有</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>分别参考了<a href="http://jm.taobao.org/2011/10/08/1232/" target="_blank" rel="external">ZooKeeper典型应用场景一览</a>和<a href="http://www.sel.zju.edu.cn/?p=523" target="_blank" rel="external">ETCD：从应用场景到实现原理的全方位解读</a></p>
+</blockquote>
+<h1 id="zookeeper可以作为分布式存储吗"><a href="#zookeeper可以作为分布式存储吗" class="headerlink" title="zookeeper可以作为分布式存储吗?"></a>zookeeper可以作为分布式存储吗?</h1><p>在应用场景上，etcd和Zookeeper也很一致，难道Zookeeper本质上是分布式存储组件，为此，我查了下 Zookeeper是否可以作为分布式存储系统？ 在知乎上的答案为 <a href="https://www.zhihu.com/question/22116083" target="_blank" rel="external">zookeeper只存元数据</a>，总结几点原因如下</p>
+<ul>
+<li>znode只能存1M以内的数据</li>
+<li>写入性能低，为保证一致性，每次需要n/2+1的写入完成才算完成</li>
+<li>zookeeper的数据是全部存储在内存,只适合存元数据</li>
+<li>Zookeeper的使用场景是有高一致性的</li>
+</ul>
+<p>所以，逻辑上来说，可以。因为Zookeeper本质上是一个内存式的文件系统，它的znode就相当于dictionary和file的结合体，但是由于性能和存储容量以及使用场景来看，Zookeeper适合存有强一致性要求的配置信息，也就是元数据。</p>
+<p>到这一步，基本搞清楚了Zookeeper的应用场景了，如果etcd可以和Zookeeper作类比的话，难道etcd不是一个分布式存储组件？</p>
+<h1 id="etcd究竟是干啥的？"><a href="#etcd究竟是干啥的？" class="headerlink" title="etcd究竟是干啥的？"></a>etcd究竟是干啥的？</h1><p>回到etcd的官方文档，在Reference下看到一个<a href="https://coreos.com/etcd/docs/latest/learning/why.html" target="_blank" rel="external">etcd versus other key-value stores</a>目录，发现了etcd的名称由来，原来它是”/etc”和”d” for distributed 的结合体， 它存的也是大型分布式系统的配置信息，也就是distributed “/etc”</p>
+<p>到此可知，Zookeeper和etcd解决的问题是一样的，都解决分布式系统的协调和元数据的存储，所以它们都不是一个存储组件，或者说都不是一个分布式数据库。etcd灵感来源于Zookeeper，但在实现的时候有了很多的改进。</p>
+<ul>
+<li>更轻量级、更易用</li>
+<li>高负载下的稳定读写</li>
+<li>数据模型的多版本并发控制</li>
+<li>稳定的watcher功能，通知订阅者监听值的变化</li>
+<li>客户端协议使用gRPC协议，支持go、C++、Java等，而Zookeeper的RPC协议是自定制的，目前只支持C和Java</li>
+<li>可以容忍脑裂现象的发生</li>
+</ul>
+<p>脑裂现象指的是，在一个分布式集群中，只允许一个leader协调工作，由于网络或其他原因，导致一个集群分成了两个集群，产生了两个leader同时工作，此时集群不在具备读写一致性。</p>
+<blockquote>
+<p>etcd是使用raft算法解决的脑裂问题，raft算法具体参考 <a href="http://thesecretlivesofdata.com/raft/" target="_blank" rel="external">大神制作的动画</a></p>
+</blockquote>
+<p>关于脑裂现象的一些推荐资料</p>
+<ul>
+<li><a href="http://linux-ha.org/wiki/Split_Brain" target="_blank" rel="external">Linuex-ha split-brain</a></li>
+<li><a href="http://techthoughts.typepad.com/managing_computers/2007/10/split-brain-quo.html" target="_blank" rel="external">Split-brain, Quorum, and Fencing - updated</a></li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>之前在使用etcd的时候，只是在官网看到了分布式存储，就默认它为一个存储组件，导致了对etcd的误解，这也是第一次用到的时候没有深入了解导致的，在经过和Zookeeper的比较学习之后，发现两者在很多方面有着相同的特性。以前我对Zookeeper也有一定的误解，以为它是一个协调者，一定有管理的功能，可以控制很多东西，但经过这番学习之后，发现其实Zookeeper本质上也是一个存储单元，用于存放配置信息，解决分布式中的读写一致性问题。总的来说，etcd和Zookeeper有相似的功能，做的事情也大同小异，只是可能具体的应用场景不太一样，我目前的了解是Zookeeper主要用于Hadoop组件的协调上，etcd主要用与Kubernetes上对于容器的协调上，两者都是用于存放配置信息等元数据的，随着以后的深入学习，希望可以慢慢把他们的区别理清晰。</p>
+<blockquote>
+<p>唉，学习就像解bug，当我知道哪错了的时候，离真相也就不远了 (ಥ_ಥ)</p>
+</blockquote>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> zookeeper </tag>
+            
+            <tag> etcd </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[MapReduce1的工作原理]]></title>
+      <url>/2017/09/26/mapreduce1/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>《Hadoop权威指南》这本书上关于MapReduce的工作机制进行了详细的介绍，job运行过程每一步的讲解比较清晰，在此进行整理和汇总。</p>
+<a id="more"></a>
+<h1 id="MapReduce1-简介"><a href="#MapReduce1-简介" class="headerlink" title="MapReduce1 简介"></a>MapReduce1 简介</h1><p>MapReduce1 是Hadoop2.0之前的MapReduce程序调度机制，也就是YARN出现之前的经典调度模型，最顶层包含了4个独立的实体。</p>
+<ul>
+<li>客户端， 提交MapReduce程序</li>
+<li>jobtracker，协调作业的运行。它是一个Java应用程序，主类为JobTracker，扮演的角色是一个协调者的角色，是一个调度中心。负责的工作是作业的分配，tasktracker的监控</li>
+<li>tasktracker，运行作业划分后的任务。也是一个Java应用程序，主类为TaskTracker，它是MapReduce程序实际的运行者，受jobtracker的调度和指挥，并向jobtracker报告自己的状态，可以分为maptask、reducetask等</li>
+<li>分布式文件系统（一般为HDFS），用于存放共享作业，如作业的jar文件，配置文件，计算所得的输入分片等，不存放计算的中间数据，中间数据存放在task所在节点的磁盘上。</li>
+</ul>
+<p>下图简单介绍了MapReduce程序的工作流程及上述几个实体扮演的角色</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-26/78433226.jpg" alt=""></p>
+<p>一个job的完整流程包括了作业的提交，作业的初始化，任务的分配，任务的执行，进度和状态的更新，作业的完成六大步骤，下面进行分步介绍。为了方便，下面将job执行的工作原理图放上，并添加标题，方便后面文字说明时进行查找。</p>
+<div id="img1" style="font-weight:bold">MapReduce作业的工作原理图</div>
+
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-26/37217492.jpg" alt="图1"></p>
+<h1 id="作业（job）的提交"><a href="#作业（job）的提交" class="headerlink" title="作业（job）的提交"></a>作业（job）的提交</h1><p>job的提交涉及到的实体是客户端（job client）、JobTracker和分布式文件系统（HDFS）。它的步骤主要是<a href="#img1">工作原理图</a>中的第1-4步。</p>
+<ol>
+<li>启动job。会创建一个JobSubmmiter对象，之后的作业提交交给它来完成。</li>
+<li>向JobTracker请求一个作业ID（调用JobTracker的getNewJobId方法）</li>
+<li>在作业信息发给HDFS之前，需要先检查作业的输出、输出路劲是否存在，满足后将作业JAR文件、配置文件和输入分片等复制到一个以作业ID命名的目录下（位于JobTracker的文件系统子目录中）。作业jar有多个副本，默认为10，运行作业是以供tasktracker访问</li>
+<li>告知jobtracker准备执行（调用JobTracker的submitJob方法）</li>
+</ol>
+<p>提交作业后，waitForCompletion()每秒轮询作业的进度，更新进度报告。作业完成后，若成功，则输出作业计数器，否则，报告作业失败信息。</p>
+<h1 id="作业的初始化"><a href="#作业的初始化" class="headerlink" title="作业的初始化"></a>作业的初始化</h1><ol>
+<li>JobTracker将提交上来的作业进行初始化，创建一个表示作业的对象，用于封装任务和记录信息，以便跟踪任务状态。之后，将他们放入一个内部队列中，交由job scheduler来调度。</li>
+<li>job scheduler创建任务运行列表。首先从HDFS中获取客户端计算好的输入分片，为每个分片创建一个map任务。然后根据Job中设置的mapred.reduce.tasks属性n创建相应数量的reduce任务，并指定任务ID。同时创建作业创建和作业清理两个任务，他们在tasktracker中运行，负责map之前的创建作业和reduce之后的作业清理。</li>
+</ol>
+<h1 id="任务的分配"><a href="#任务的分配" class="headerlink" title="任务的分配"></a>任务的分配</h1><ol>
+<li>tasktracker定期发送“心跳信息”给jobtracker，来表示自己的存活和是否准备好运行任务。jobtracker为ready状态的tasktracker分配一个任务（map或reduce）。 任务的分配取决于调度算法，如tasktracker上有固定的map槽和reduce槽（取决于tasktracker的核和内存)，默认调度算法优先占用map槽。但对于map任务，jobtracker会考虑距离输入分片文件最近的tasktracker进行调度，map任务可能有数据本地化（任务运行在输入分片所在的节点上）、机架本地化（运行在所在机架），无本地化三种状态。</li>
+</ol>
+<h1 id="任务的执行"><a href="#任务的执行" class="headerlink" title="任务的执行"></a>任务的执行</h1><ol>
+<li>taskTracker将作业的jar文件从HDFS上复制到本地，然后将应用所需的全部文件从分布式缓存复制到本地磁盘，然后创建一个本地目录，将jar文件内容解压到该目录下。之后tasktracker新建一个TaskRunner对象。</li>
+<li>TaskRunner启动一个新的jvm来运行每一个任务，以便用户定义的map和reduce不会影响到tasktracker。</li>
+<li>任务在JVM中运行，并定期汇报自己的进度，直到任务完成。</li>
+</ol>
+<h1 id="进度和状态的更新"><a href="#进度和状态的更新" class="headerlink" title="进度和状态的更新"></a>进度和状态的更新</h1><p>MapReduce程序是一个耗时较长的任务，对于用户来说，需要得知作业的进度。任务在运行时，对于map任务来说，进度是已经处理的输入所占的比例。对于reduce任务来说，系统会估计已处理reduce输入的比例。</p>
+<p>MapReduce中改变进度状态的操作为：</p>
+<ul>
+<li>读入一条输入记录（mapper或reducer）</li>
+<li>写入一条输出记录</li>
+<li>在一个Reporter中设置状态描述</li>
+<li>增加计数器(Reporter)</li>
+<li>调用Reporter的progress()任务</li>
+</ul>
+<p>进度最终会由tasktracker汇总到JobTracker中，JobClient每秒查询JobTracker来获取最新状态，也可以显式调用Job的getStatus方法来获取所有状态信息。</p>
+<h1 id="作业的完成"><a href="#作业的完成" class="headerlink" title="作业的完成"></a>作业的完成</h1><p>作业完成后，客户端从waitForCompletion()方法返回，Job的统计信息和计数值也输出到控制台。最后JobTracker清空作业的工作状态，并指示tasktracker也清空作业的工作状态(如删除中间输出)</p>
+<h1 id="感想"><a href="#感想" class="headerlink" title="感想"></a>感想</h1><p>第一代的MapReduce虽然已经不在被使用，但对于学习MapReduce程序的流程还是有很大的帮助的，通过整理，了解了一些细微的知识点，相信对于理解YARN也会有很大的帮助。</p>
+<blockquote>
+<p>Know one thing, Know it well.</p>
+</blockquote>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> MapReduce1 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[Ambari 功能简介]]></title>
+      <url>/2017/09/25/ambari_info/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>最近在做关于Hadoop集群的可视化部署相关的调研，发现了Ambari这个有趣的东西，在使用的过程中，整理了一部分功能列表，在此分享。</p>
+<a id="more"></a>
+<h1 id="Ambari简介"><a href="#Ambari简介" class="headerlink" title="Ambari简介"></a>Ambari简介</h1><p>Ambari是Hortonworks开源的Hadoop平台的管理软件，具备Hadoop组件的安装、数据管理等基本功能，提供Web UI进行可视化的集群管理，简化了大数据平台的安装、使用难度。</p>
+<h1 id="功能列表"><a href="#功能列表" class="headerlink" title="功能列表"></a>功能列表</h1><p>操作级别：</p>
+<ul>
+<li>Host Level Action（机器级别的操作）</li>
+<li>Component Level Action（模块级别的操作）</li>
+</ul>
+<p>基于角色的用户管理，角色分为：</p>
+<ul>
+<li>Cluster User。 查看集群和Service的信息，如配置、service状态、健康状态等。Read-only</li>
+<li>Service Operator。 能够操作Service的生命周期，如启动，停止，也可以进行一些如Rebalance DataNode和YARN refresh的操作</li>
+<li>Service Administrator。 在Service Operator的基础上增加了配置service，移动NameNode，启用HA等操作</li>
+<li>Cluster Operator。 在Service Administrator的基础上增加了对hosts和components的操作，如增加，删除等</li>
+<li>Cluster Administrator。集群的超级管理员，拥有无上的权利，可以操作任何组件。</li>
+</ul>
+<p>Dashboard 监控</p>
+<ul>
+<li>Roll Start功能。根据Service的依赖关系，按照一定的顺序启动每个Service。比如HBase依赖HDFS和Zookeeper，Ambari会先启动HDFS和Zookeeper，之后启动HBase。如图所示</li>
+<li>关键的运维指标（metrics）–metrics 是“度量,指标”的意思</li>
+<li>在左侧的 Service 列表,中间部分是 Service 的模块（Component）信息，也就是该 Service 有哪些模块及其数目。右上角有个 Service Action 的按钮，包括service的启动、停止、删除等操作。</li>
+<li>Quick links（导向组件原生管理界面）  <ul>
+<li>NameNode UI、ResourceManage UI、HBase Master UI</li>
+<li><a href="http://unix191:50070/logs/" target="_blank" rel="external">http://unix191:50070/logs/</a>   HDFS的NameNode的logs</li>
+<li><a href="http://unix192:8088/logs/" target="_blank" rel="external">http://unix192:8088/logs/</a>    YARN的ResourceManage 的logs</li>
+<li><a href="http://unix191:16010/logs/" target="_blank" rel="external">http://unix191:16010/logs/</a>   Hbase的logs<br>Alert介绍</li>
+</ul>
+</li>
+<li>Alert 告警级别 Status：<br>   OK  、Warning、Critical、Unknown、None</li>
+<li>Alert 告警类型：<br>   WEB、Port、Metric、Aggregate 和 Script</li>
+<li>表 1. Ambari 中的 Alert 类型对比</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>类型</th>
+<th>用途</th>
+<th>告警级别</th>
+<th>阀值是否可配置</th>
+<th>单位</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PORT</td>
+<td>用来监测机器上的一个端口是否可用</td>
+<td>OK, WARN, CRIT</td>
+<td>是</td>
+<td>秒</td>
+</tr>
+<tr>
+<td>METRIC</td>
+<td>用来监测 Metric 相关的配置属性</td>
+<td>OK, WARN, CRIT</td>
+<td>是</td>
+<td>变量</td>
+</tr>
+<tr>
+<td>AGGREGATE</td>
+<td>用于收集其他某些 Alert 的状态</td>
+<td>OK, WARN, CRIT</td>
+<td>是</td>
+<td>百分比</td>
+</tr>
+<tr>
+<td>WEB</td>
+<td>用于监测一个 WEB UI（URL）地址是否可用</td>
+<td>OK, WARN, CRIT</td>
+<td>否</td>
+<td>无</td>
+</tr>
+<tr>
+<td>SCRIPT</td>
+<td>Alert 的监测逻辑由一个自定义的 python 脚本执行</td>
+<td>OK, CRIT</td>
+<td>否</td>
+<td>无</td>
+</tr>
+</tbody>
+</table>
+<h1 id="Hadoop代表组件功能说明"><a href="#Hadoop代表组件功能说明" class="headerlink" title="Hadoop代表组件功能说明"></a>Hadoop代表组件功能说明</h1><p>1）HDFS</p>
+<ul>
+<li>启动、停止、重启HDFS，也支持HDFS的删除，前提是删除依赖HDFS的其他service</li>
+<li>高级配置<br>支持对core-site.xml、hdfs-site.xml的高级配置</li>
+<li>下载配置文件</li>
+<li>状态查看<br>NameNode和SNameNode的健康状况以及所在的节点、硬盘使用率、块的状态（丢失、冲突的个数）</li>
+<li>文件查看<br>嵌入了HDFS原生的文件目录查看功能，没有一键上传、下载文件的功能</li>
+<li>日志查看<br>日志查看可以通过QuickLinks中导向HDFS原生日志查看Web UI界面，没有经过界面的优化，日志查看也没有辅助功能（如检索）</li>
+<li>移动NameNode、SNameNode</li>
+<li>Rebalancing HDFS<br>使得DataNodes上的块分布均匀</li>
+<li>NameNode UI<br>通过QuickLinks导向HDFS原生UI</li>
+<li>HA<br>一键配置NameNode的高可用，使用JournalNode、NFS为共享存储</li>
+</ul>
+<p>2）Zookeeper</p>
+<ul>
+<li>启动、停止、重启Zookeeper集群</li>
+<li>状态查看<br>Zookeeper Server和Client的健康状况，所在的节点</li>
+<li>高级配置<br>zoo.cfg、日志输出格式(log4j的配置)</li>
+<li>添加Zookeeper Server节点</li>
+<li>下载配置文件</li>
+</ul>
+<p>3）HBase</p>
+<ul>
+<li>启动HBase集群，启动RegionServer，停止集群，删除HBase集群</li>
+<li>添加HBase Master节点</li>
+<li>状态查看<br>HBase Master、RegionServers的状态及其所处节点，master启动时间，平均负载（regions/regionsServer）</li>
+<li>高级配置<br>HBase Master、RegionServer、Client的内存限制、心跳时间等。可以启用Kerberos（前提是安装该Service），也可以开启Phoenix SQL</li>
+<li>日志查看<br>日志查看可以通过QuickLinks中导向原生日志查看Web UI界面</li>
+<li>Master UI界面<br>通过QuickLinks导向HDFS原生UI</li>
+</ul>
+<p>4）Kafka</p>
+<ul>
+<li>Kafka的启动、停止、重启，Brokers的重启，Service的删除</li>
+<li>高级配置<br>对Kafka Broker、Producer、Consumer的配置。Broker支持连接参数设置、Topic配置、日志配置等，</li>
+<li>状态查看<br>Broker的状态、所在节点位置，结合Ambari Metrics可以查看更多状态，如Topics、Controller、Replica</li>
+</ul>
+<h1 id="Ambari使用感想"><a href="#Ambari使用感想" class="headerlink" title="Ambari使用感想"></a>Ambari使用感想</h1><p>Ambari通过HDP将Hadoop的组件进行集成，通过栈的形式提供Service的组合使用，它主要解决的问题如下：</p>
+<ul>
+<li>简化了部署过程，在HDP栈中支持的Service只需要图形化的安装即可，可以方便的指定master所在的节点，使集群快速运行起来</li>
+<li>通过Ambari Metrics实现集群状态的监控，并通过集成Grafana进行数据的展示（CPU、内存、负载等）</li>
+<li>Service的高级配置。集群部署之后，可以方便的通过dashboard进行参数的修改（如HDFS的core-site等）</li>
+<li>快速链接。Ambari提供快速导向Hadoop组件原生管理界面的链接</li>
+<li>节点的扩展。如HBase Master的增加。</li>
+<li>可定制的Alert功能。Ambari的报警信息可以自定义，使得用户可以根据自己的需要，设置哪些情况下需要报警，哪些不需要。</li>
+<li>增值功能。如HDFS的Rebalance DataNode、NameNode的HA等</li>
+<li>Ambari自身的用户管理，基于RBAC赋予用户对Hadoop集群的管理权限。角色分为</li>
+</ul>
+<p>Ambari并没有对Hadoop组件进行过多的功能集成，如日志分析等，只是提供了安装，配置，启停等功能，尽量保持了跟原生Hadoop组件的隔离性，对于该组件的具体操作，通过Quick Links 直接导向原生的管理界面（如HBase Master UI），它的做法保持了对于Hadoop组件的低侵入性。</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
+            
+            <tag> Ambari </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[（翻译）Pachyderm介绍-建造一个现代的Hadoop]]></title>
+      <url>/2017/09/21/pachyderm_desc/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>最近在调研时发现了Pachyderm这个项目，感觉他们做的工作挺有意思的。Pachyderm将Docker和Hadoop联合起来，旨在使得大数据分析的过程更加便捷，众多非Java语言的工具也可以方便的使用到大数据的分析中来，并在HDFS的基础上增加了版本控制，使得数据可以进行增量分析。我在Medium上看到一篇相关介绍，讲的比较详细，原文是英文的，因此翻译下来分享一下，也方便自己之后的查阅。 原文链接 <a href="https://medium.com/pachyderm-data/lets-build-a-modern-hadoop-4fc160f8d74f" target="_blank" rel="external">Let’s Build a modern Hadoop</a></p>
+<a id="more"></a>
+<h1 id="翻译正文"><a href="#翻译正文" class="headerlink" title="翻译正文"></a>翻译正文</h1><h2 id="让我们建造一个现代的Hadoop"><a href="#让我们建造一个现代的Hadoop" class="headerlink" title="让我们建造一个现代的Hadoop"></a>让我们建造一个现代的Hadoop</h2><blockquote>
+<p>我承诺，这不仅仅是另一个Hadoop的激情演说</p>
+</blockquote>
+<p>如果你做过大数据的相关工作，那么你很可能已经感受到Hadoop带来的烦恼。但我们仍然坚持使用它，因为我们告诉自己：“这就是Hadoop作为基础设施软件必须工作的方式”。然而，在过去的十年内，像NoSQL数据库，分布式部署工具，云计算等工具，都随着量级的由小到大产生了很大的改进。为什么大数据分析软件就要被远远甩在身后？是什么让Redis，Docker和CoreOS看起来那么年轻和酷炫而Hadoop却如此老迈？</p>
+<blockquote>
+<p>Hadoop是一个不可挽回的分裂的生态  </p>
+</blockquote>
+<p>现代开源项目信奉Unix的哲理——“做一件事，把它做到极致，并能和其他相关的工具结合使用”。上面提到的每一个项目，从创建伊始，就有一个清晰的创建者，培养着一个健康的生态并给予项目正确的方向和目标。在一个蓬勃的生态中，每个部分都流畅的集成在一起以给开发者提供弹性的可结合的技术栈。</p>
+<p>Hadoop从来没有考虑过这些。它像是一匹野马，被释放在一片旷野之上，没有缰绳也没有方向。每一个主要的Hadoop用户都必须自己增加丢失的功能。有一些被回馈给了社区，但很多并没有。Facebook大概是Hadoop世界中最大的使用者。他们六年前(根据文章的时间，推算为2009年)fork出Hadoop并将他们的改进版本闭源。</p>
+<p>这不是一个现代开源项目应当工作的方式。我认为是时候创造一个现代的Hadoop了，那也是我们对于Pachyderm的期许。Pachyderm是一个架构在现代工具上的全新的存储和计算引擎。最大的好处就是我们得以使用开源基础设施中令人惊叹的功能，比如Docker和Kubernetes。</p>
+<p>这也是为什么我们在数量级上比Hadoop好的原因。Pachyderm只关注数据分析平台而对于其他部分，我们使用强大的成品工具。当Hadoop出来的时候，他们需要自己建造每一个轮子，但我们不需要。文章接下来我们对于现在数据分析技术栈的设计蓝图。Pachyderm现在还很年轻，开源项目需要健康的讨论以不断的提高。请分享你的观点并帮助我们建造<a href="https://github.com/pachyderm/pachyderm" target="_blank" rel="external">Pachyderm</a></p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-15/28759688.jpg" alt=""></p>
+<p><strong>注意：</strong> Hadoop生态已经形成十多年了，因此是很成熟的。Pachyderm要拥有每一个相应的替代品（如Hive，Pig）之后，才能完美使用。上图仅仅比较两者都有的功能，像分布式文件系统，计算框架等。</p>
+<h2 id="分布式计算"><a href="#分布式计算" class="headerlink" title="分布式计算"></a>分布式计算</h2><p>在Hadoop中，MapReduce的任务只能是Java的。这对于Java专家来说OK，但不适用与任何人。现在有很多解决方法使用的不是Java，比如Hadoop Streaming。但是通常来说，如果你要广泛的使用Hadoop，那么你最好使用Java或者Scala。</p>
+<p>任务管道在分布式计算中经常是一个挑战。当Hadoop MapReduce显示正在运行的Jobs时，它原生不支持任何Job pipeline的标识(DAG).有很多的任务调度工具在解决这个问题上获得了不同程度的成功(比如 <a href="https://github.com/mesos/chronos" target="_blank" rel="external">Chronos</a>, <a href="http://oozie.apache.org/" target="_blank" rel="external">Oozie</a>, <a href="https://github.com/spotify/luigi" target="_blank" rel="external">Luigi</a>, <a href="https://github.com/apache/incubator-airflow" target="_blank" rel="external">Airflow</a>),但最终，公司选择整合第三方工具并自己添加功能。整合自己的代码和外部工具的任务成为一件让人头疼的事情。</p>
+<p>Pachyderm Pipelines与此正好相反。在Pachyderm中为了处理数据，你只需要简单的创建一个容器化的应用将其读写到本地文件系统上即可。你可以使用任何你想要的工具因为它是跑在一个容器中的。Pachyderm将会使用一个FUSE存储卷把数据注入到你的容器中，之后自动的复制这个容器，并展示给每个容器不同的数据块。通过这项技术，Pachyderm可以并行的扩展任何你写的代码来处理大量的数据集。再也没有Java和JVM的什么事了，只要使用你最爱的编程语言写数据处理逻辑就可以了。如果你的代码可以跑在Docker上，你就可以使用它来做数据分析。</p>
+<p>Pachyderm也会为所有的任务和他们的依赖创建一个DAG。DAG自动的调度pipeline使得每个任务等待他们的依赖完成之后运行。Pachyderm中的每个部分互相通知不同之处，因此它们准确的知道哪些数据改变了以及pipeline中的哪个子集需要重启。</p>
+<h2 id="Job执行平台"><a href="#Job执行平台" class="headerlink" title="Job执行平台"></a>Job执行平台</h2><p>将Docker和JVM进行比较是有一点难度的，我们将它们分类为“job platform”，因为他们定义了job的输入格式。</p>
+<p>JVM是Hadoop生态的骨干，如果你想要在Hadoop之上建造点什么，你要么需要用Java写要么需要一个特定的工具来将你原来的代码转换过去。Hive是一个HDFS的SQL_like接口，是目前为止最受欢迎且支持度最高的。也有常用的第三方库，比如图像处理，但是他们通常很不标准且不经常维护。如果你尝试做一些复杂的事情，比如说分析象棋比赛，通常你需要结合很多第三方工具，统一使用。</p>
+<p>Docker则大不一样，它完全不依赖任何的语言和库。你不用局限于JVM指定的工具，只需要使用那些库并把他们打包进Docker即可。比如，你可以使用<code>npm install opencv</code>来做PB级的计算机视觉任务！工具可以使用任何语言来编写，它非常容易被整合进Pachyderm的技术栈里。</p>
+<p>最后，Pachyderm数据分析管道是可插拔和共享的。因为每个部分都是在容器里，它可以保证在不同的集群和数据集上运行一个可预测的环境。就像某人可以从Docker Hub上pull下来镜像，并立即使用在生产环境中，也可以通过镜像创建一个自然语言处理的容器。它的工作不依赖任何基础设施。那就是我们通过Pachyderm pipeline想要做的事。</p>
+<h2 id="分布式存储"><a href="#分布式存储" class="headerlink" title="分布式存储"></a>分布式存储</h2><p>HDFS是Hadoop生态中最稳定和鲁棒的一个了。它非常适用于分布式的存储大量的数据集，但是缺乏协作。大规模的数据分析和流水线是一个天然的合作结果，但是HDFS从来不是被设计成用于并发的。相反，它防止用户之间产生任何影响。如果有人改变了管道的输入流，很容易导致一个任务失败或者改变。每个公司使用不同的方式解决这个问题。有时候的方法是单纯的使得每个用户得到数据的一份拷贝，而这需要大量的额外存储空间。</p>
+<p>Pachyderm File System（PFS）是一个分布式文件系统，它受git的启发。在一个空间中，Pfs给予你数据的完全版本控制。整个文件系统是基于commit的，这意味着你拥有数据的每一个版本。就像git那样，Pachyderm提供了分支功能，允许每个用户有他自己的完全独立的数据分支。用户可以无所顾忌的使用自己的文件，而不需考虑会影响到其他的用户。</p>
+<p>Pfs使用对象存储你的数据(S3, GCS, Ceph)。你不需要担心把数据交给全新的技术是否安全。相反，你得到所有你之前习惯的冗余和一致性保证，但使用的是Pachyderm的数据管理特性。</p>
+<p>数据的版本控制也是和管道系统高度协作的。Pachyderm了解你的数据怎样变化，因此，当新的数据进来时，你可以仅仅在变化的那部分数据上运行你的任务，而不需要读取整个文件。这不仅使得集群性能大幅提高，而且使得Pachyderm的批处理和流处理没有任何区别，相同的代码可以支持两种操作。</p>
+<h2 id="集群管理"><a href="#集群管理" class="headerlink" title="集群管理"></a>集群管理</h2><p>集群管理层帮助你管理存储数据和执行任务的机器。</p>
+<p>在Hadoop中，两个主要的工具是YARN和Zookeeper。YARN用于任务调度和资源管理，Zookeeper则提供了配置信息的强一致性。在Hadoop概念中，没有太好的其他工具解决这些问题，所以Hadoop是强烈依赖YARN和Zookeeper的。这两个工具早期促成了Hadoop的成功，但现在却成为了新特性的重要障碍。模块化的缺失，毫无疑问是Hadoop最大的缺点。</p>
+<p>Pachyderm遵循了Docker的哲学——“包含电池，但可以移除”。我们聚焦于把大数据分析做到最好，其他的部分全部使用现成的组件。我们选择Kubernetes用于集群管理，选择Docker用于容器化，但他们都可以使用其他的组件替换。</p>
+<p>在Pachyderm技术栈中，集群管理使用Kubernetes和CoreOS的工具etcd。他们的功能是类似于YARN和Zookeeper的。Kubernetes是一个调度者，根据资源的可用性来调度服务。Etcd是一个容错的分布式数据库用于存放配置信息并在网络分裂后进行节点的管理。如果一个节点挂掉了，Etcd注册这个信息并使得Kubernetes重新手机节点的进程。其他的集群管理工具如Mesos，可以用于替代CoreOS和Kubernetes，但没有被正式的支持。</p>
+<p>使用现成的工具有两大好处。第一，它节省了我们“重复造轮子”的时间并且给了我们很好的抽象和剥离。第二，Etcd和Kubernetes本身就是模块化的，因此它们也支持其他的部署方案。</p>
+<h2 id="操作系统"><a href="#操作系统" class="headerlink" title="操作系统"></a>操作系统</h2><p>两个技术栈都是运行在Linux之上的。</p>
+<h2 id="结束语"><a href="#结束语" class="headerlink" title="结束语"></a>结束语</h2><p>可扩展，分布式是数据分析软件的重要基本特性。现代的Web公司收集持续不断的数据用于制定面向数据的决策。世界需要一个现代的开源软件，Hadoop的过时已经成为数据驱动时代的负担，是时候让我们的数据分析工具来拥抱未来了。</p>
+<h2 id="我的感想"><a href="#我的感想" class="headerlink" title="我的感想"></a>我的感想</h2><p>通读下来后，原作者对于Hadoop的一些弊端的论述我是很难理解的（<em>我就觉得Zookeeper挺优秀的啊，为什么要换~~~</em>），毕竟我的水平太低<code>o(╥﹏╥)o</code>，但作者的一些观点还是很新颖的，比如借鉴Git来改进文件系统，使用数据的增量进行数据分析等。Docker和Hadoop都是很牛的项目，期待他们的碰撞会迸发怎样的火花 <code>^_^</code></p>
+<blockquote>
+<p>翻译不易，转载请注明出处 Thanks♪(･ω･)ﾉ</p>
+</blockquote>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> docker </tag>
+            
+            <tag> pachyderm </tag>
+            
+            <tag> 翻译 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[2n+1个数中，n个数出现两次，找出只出现一次的数]]></title>
+      <url>/2017/09/17/weiyu/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>算法题目中很多经典的题型使用到的是二进制的位运算，对于与、或、非、异或等都有一些经典的题，下面介绍一道关于异或的经典题和它的相关变形。</p>
+<h1 id="题目"><a href="#题目" class="headerlink" title="题目"></a>题目</h1><p>在一个长度为2n+1的数组中，n个数出现两次，只有一个数出现一次，找出这个只出现一次的数x.</p>
+<a id="more"></a>
+<p>示例：<br>假设输入的为 [1, 2, 3, 4, 3, 2, 1]，其中1，2，3都出现了两次，只有4出现一次，因此算法输出为4.</p>
+<h2 id="基本解法"><a href="#基本解法" class="headerlink" title="基本解法"></a>基本解法</h2><p>最容易想到的解法便是对数组进行两层循环遍历，这种算法的平均时间复杂度为<code>$O(n^2)$</code>  </p>
+<p>代码如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Main</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span> a[] = &#123;<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">5</span>, <span class="number">5</span>&#125;;</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;a.length; i++) &#123;</div><div class="line">            System.out.print(a[i] + <span class="string">" "</span>);</div><div class="line">        &#125;</div><div class="line">        System.out.println(<span class="string">"\nres: "</span>+findNumber(a, a.length));</div><div class="line"></div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">int</span> <span class="title">findNumber</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span> x = <span class="number">0</span>;</div><div class="line">        <span class="keyword">boolean</span> flag;</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;n; i++) &#123;</div><div class="line">            x = a[i];</div><div class="line">            flag = <span class="keyword">true</span>;</div><div class="line">            <span class="keyword">for</span>(<span class="keyword">int</span> j=<span class="number">0</span>; j&lt;n; j++) &#123;</div><div class="line">                <span class="keyword">if</span>(a[j] == x &amp;&amp; j != i)</div><div class="line">                    flag = <span class="keyword">false</span>;</div><div class="line">            &#125;</div><div class="line">            <span class="keyword">if</span>(flag)</div><div class="line">                <span class="keyword">return</span> x;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> x;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>输出为：</p>
+<blockquote>
+<p>1 2 3 4 3 2 1 5 5<br>res: 4</p>
+</blockquote>
+<h2 id="位异或解法"><a href="#位异或解法" class="headerlink" title="位异或解法"></a>位异或解法</h2><p>位异或的解法使用到的思想主要有两个</p>
+<ol>
+<li>相同的两个数异或结果为0， 如 3 ^ 3 = 0</li>
+<li>异或满足交换律，也就是 A ^ B ^ C ^ A = A ^ A ^ B ^ C = B ^ C</li>
+</ol>
+<p>算法： 将数组依次进行疑惑，其结果就是只出现了一次的数x</p>
+<p>代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Main1</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span> a[] = &#123;<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">5</span>, <span class="number">5</span>&#125;;</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;a.length; i++) &#123;</div><div class="line">            System.out.print(a[i] + <span class="string">" "</span>);</div><div class="line">        &#125;</div><div class="line">        System.out.println(<span class="string">"\nres: "</span>+findNumber(a, a.length));</div><div class="line"></div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">int</span> <span class="title">findNumber</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span> x = <span class="number">0</span>;</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;n; i++)</div><div class="line">            x ^= a[i];</div><div class="line">        <span class="keyword">return</span> x;</div><div class="line">    &#125;</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>输出为：</p>
+<blockquote>
+<p>1 2 3 4 3 2 1 5 5<br>res: 4</p>
+</blockquote>
+<h1 id="题目变形1"><a href="#题目变形1" class="headerlink" title="题目变形1"></a>题目变形1</h1><p>在一个长度为2n+2的数组中，n个数出现两次，有两个数出现一次，找出这两个只出现一次的数x， y.</p>
+<h2 id="算法的解决思想"><a href="#算法的解决思想" class="headerlink" title="算法的解决思想"></a>算法的解决思想</h2><ol>
+<li>仍然使用位异或的算法，将数组依次进行异或操作，得到 res = x ^ y</li>
+<li>找到res从低位数第一个出现1的位置i，得到 <code>$pivot = 2^i$</code>(2的i次方).<br>如 res = 1001000(2进制数)， 则 pivot = 1000(2进制)= 8 = <code>$2^3$</code><ul>
+<li>解释： 因为第一个出现1的位置相当于说是 x 和 y 第一个不同的位置，也就是x和y在该位置要么x为0，y为1；要么x为1，y为零。从第i位往下数，x和y的值相同</li>
+</ul>
+</li>
+<li>将数组每个数字a[i]和 pivot进行与运算，如果为零， 则 res_1 ^= a[i];<br>否则， res_2 ^= a[i]， 则  res_1 为 x, res_2 为 y.   <ul>
+<li>解释： 将 a[i] &amp; pivot 本质上将数组中的数分为了两类：一类结果为0，一类结果为1。而x,y必定被分在两个不同的类中，因为x,y在第i位不同，且<code>$pivot=2^i$</code>,也就是说pivot除第i位外，其余位均为0，因此x,y和pivot的与必定一个为0，一个为1。最终res_1 = a[i] ^ x; res_2 = a[i] ^ y; a[i]中相同的两个数异或后相互抵消，所以 res_1 = x; res_2 = y;</li>
+</ul>
+</li>
+</ol>
+<p>代码如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line"> <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Main1</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span> a[] = &#123;<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">5</span>, <span class="number">5</span>, <span class="number">20</span>&#125;;</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;a.length; i++) &#123;</div><div class="line">            System.out.print(a[i] + <span class="string">" "</span>);</div><div class="line">        &#125;</div><div class="line">        System.out.print(<span class="string">"\nres: "</span>);</div><div class="line">        <span class="keyword">int</span>[] res = findTwoNumber(a, a.length);</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;res.length; i++)</div><div class="line">            System.out.print(res[i]+<span class="string">" "</span>);</div><div class="line"></div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">int</span>[] findTwoNumber(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n) &#123;</div><div class="line">        <span class="keyword">int</span> res = <span class="number">0</span>;</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;n; i++)</div><div class="line">            res ^= a[i];</div><div class="line"></div><div class="line">        <span class="keyword">int</span> index = <span class="number">0</span>;</div><div class="line">        <span class="keyword">while</span> ((res &amp; <span class="number">1</span>) ==<span class="number">0</span>) &#123;</div><div class="line">            res = res &gt;&gt; <span class="number">1</span>;   </div><div class="line">            index++;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">int</span> pivot = <span class="number">1</span> &lt;&lt; index;</div><div class="line"></div><div class="line">        <span class="keyword">int</span>[] arr = &#123;<span class="number">0</span>, <span class="number">0</span>&#125;;</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;n; i++) &#123;</div><div class="line">            <span class="keyword">if</span>((a[i] &amp; pivot) == <span class="number">0</span>)</div><div class="line">                arr[<span class="number">0</span>] ^= a[i];</div><div class="line">            <span class="keyword">else</span></div><div class="line">                arr[<span class="number">1</span>] ^= a[i];</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> arr;</div><div class="line">    &#125;</div><div class="line"></div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>输出为:</p>
+<blockquote>
+<p>1 2 3 4 3 2 1 5 5 20<br>res: 4 20</p>
+</blockquote>
+<h1 id="题目变形2"><a href="#题目变形2" class="headerlink" title="题目变形2"></a>题目变形2</h1><p>在一个长度为3n+1的数组中，n个数出现3次，只有一个数出现一次，找出这个只出现一次的数x.</p>
+<h2 id="算法思想"><a href="#算法思想" class="headerlink" title="算法思想"></a>算法思想</h2><p>如果数组中没有x，那么数组中所有的数字都出现了3次，在二进制上，每位上1的个数肯定也能被3整除。如{1, 5, 1, 5, 1, 5}从二进制上看有：</p>
+<p>1：0001</p>
+<p>5：0101</p>
+<p>1：0001</p>
+<p>5：0101</p>
+<p>1：0001</p>
+<p>5：0101</p>
+<p>二进制第0位上有6个1，第2位上有3个1.第1位和第3位上都是0个1，每一位上的统计结果都可以被3整除。而再对该数组添加任何一个数，如果这个数在二进制的某位上为1都将导致该位上1的个数不能被3整除。因此通过统计二进制上每位1的个数就可以推断出x在该位置上是0还是1了，这样就能计算出x了。</p>
+<p>推广一下，所有其他数字出现m（m&gt;=2）次，而一个数字出现1次都可以用这种解法来推导出这个出现1次的数字。</p>
+<p>代码如下</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">import</span> java.util.Arrays;</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Main2</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span> a[] = &#123;<span class="number">1</span>, <span class="number">2</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">3</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">5</span>, <span class="number">5</span>, <span class="number">4</span>, <span class="number">4</span>, <span class="number">10</span>&#125;;</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;a.length; i++) &#123;</div><div class="line">            System.out.print(a[i] + <span class="string">" "</span>);</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        System.out.println(<span class="string">"\nres: "</span>+findNumber(a, a.length));</div><div class="line"></div><div class="line">    &#125;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">int</span> <span class="title">findNumber</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n)</span> </span>&#123;</div><div class="line">        <span class="keyword">int</span> bits[] = <span class="keyword">new</span> <span class="keyword">int</span>[<span class="number">32</span>];</div><div class="line">        Arrays.fill(bits,<span class="number">0</span>);</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> i=<span class="number">0</span>; i&lt;n; i++)</div><div class="line">            <span class="keyword">for</span>(<span class="keyword">int</span> j=<span class="number">0</span>; j&lt;<span class="number">32</span>; j++) &#123;</div><div class="line">                bits[j] += ((a[i] &gt;&gt; j) &amp; <span class="number">1</span>);</div><div class="line">            &#125;</div><div class="line">        <span class="keyword">int</span> res = <span class="number">0</span>;</div><div class="line">        <span class="keyword">for</span>(<span class="keyword">int</span> j=<span class="number">0</span>; j&lt;<span class="number">32</span>; j++)</div><div class="line">            <span class="keyword">if</span>(bits[j] % <span class="number">3</span> != <span class="number">0</span>)</div><div class="line">                res += (<span class="number">1</span> &lt;&lt; j);</div><div class="line">        <span class="keyword">return</span> res;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>输出为:</p>
+<blockquote>
+<p>1 2 2 1 3 3 4 5 3 2 1 5 5 4 4 10<br>res: 10</p>
+</blockquote>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>无论是2n+1，还是3n+1，其实都是所有其他数字出现m次，而一个数出现1次。这种情况之下，都可以使用3n+1 的算法的核心思想，也就是统计每个二进制位上的1的个数，然后对2求余或者对3求余（<em>异或其实就是一种对2求余的快捷方式</em>）。只要掌握了这种核心思想，不管是几n+1， 都可以在 O(n)的时间复杂度中求出。</p>
+]]></content>
+      
+        <categories>
+            
+            <category> Java </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> Java </tag>
+            
+            <tag> 算法 </tag>
+            
+            <tag> 位与 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[HashSet的存储机制]]></title>
+      <url>/2017/09/15/hash_set(java)/</url>
+      <content type="html"><![CDATA[<p>Java中Set接口下的HashSet类是一个存储不可重复数据的集合，可是我们在用的时候往往发现，明明看似重复的数据，HashSet仍然存储了进去，这不免让我们感到疑惑，不是说存储不可重复的数据的吗？下面通过实验一步一步搞懂HashSet的存储机制。<br><a id="more"></a></p>
+<ol>
+<li>假设有以下类  </li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Student</span> </span>&#123;</div><div class="line">  String  stuName;</div><div class="line"></div><div class="line">  <span class="function"><span class="keyword">public</span> <span class="title">Student</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="comment">// TODO Auto-generated constructor stub</span></div><div class="line">  &#125;</div><div class="line">  <span class="function"><span class="keyword">public</span> <span class="title">Student</span><span class="params">(String s)</span></span>&#123;</div><div class="line">    <span class="keyword">this</span>.stuName = s;</div><div class="line">  &#125;</div><div class="line">  <span class="function"><span class="keyword">public</span> String <span class="title">getStu</span><span class="params">()</span></span>&#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">this</span>.stuName;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<ol>
+<li>在test类中主函数中写入如下代码</li>
+</ol>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">Set&lt;Student&gt;  testSet = <span class="keyword">new</span> HashSet&lt;Student&gt;();</div><div class="line">Student s1 = <span class="keyword">new</span> Student(<span class="string">"stu1"</span>);</div><div class="line">Student s2 =<span class="keyword">new</span> Student(<span class="string">"stu1"</span>);</div><div class="line">Student s3 =<span class="keyword">new</span> Student(<span class="string">"stu2"</span>);</div><div class="line">testSet.add(s1);</div><div class="line">testSet.add(s2);</div><div class="line">testSet.add(s3);</div><div class="line">Iterator&lt;Student&gt; it = testSet.iterator();</div><div class="line"><span class="keyword">while</span>(it.hasNext())&#123;</div><div class="line">     Student tempStu =it.next();</div><div class="line">     System.out.println(tempStu.getStu());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>Eclipse中的输出为  stu1,stu1,stu2</p>
+<p>大家会说，当然了，因为Student类没有比较嘛，下面我们在Student类中重写Object的equals方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object obj)</span> </span>&#123;</div><div class="line">  <span class="comment">// TODO Auto-generated method stub</span></div><div class="line">  Student s =(Student)obj;</div><div class="line">  <span class="keyword">return</span> <span class="keyword">this</span>.stuName.equals(s.getStu());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>仍然是输出三个结果，通过观察Object类的方法，我们发现一个hashCode()方法，HashSet会不会跟这个方法有点关系呢？下面重写这个方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span> </span>&#123;</div><div class="line">  <span class="comment">// TODO Auto-generated method stub</span></div><div class="line">  <span class="keyword">if</span>(stuName==<span class="string">"stu1"</span>)</div><div class="line">    <span class="keyword">return</span> <span class="number">1</span>;</div><div class="line">  <span class="keyword">else</span> &#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">super</span>.hashCode();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>Eclipse的输出为stu1 ,stu2</p>
+<p>通过给stuName为stu1的Student对象的hashCode赋值为相同的1，我们得到的输出是一个stu1，满足了存储不可重复的目的。下面我们做个有趣的事情。将上面重写的equals方法改为如下代码。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">    <span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object obj)</span> </span>&#123;</div><div class="line"><span class="comment">// TODO Auto-generated method stub</span></div><div class="line"><span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>输出  stu1,stu2,stu1</p>
+<p>通过给equals方法重写，使其始终返回false，导致即使两个stu1的hashCode相同，仍然可以插入，至此，我们明白了HashSet的存储机制。<br>HashSet在存一个新的对象的时候，先比较其跟已有的对象中的hashCode是否有相同的，如果没有相同的，则直接添加，不会调用equals方法进行判断，所以导致即使我们重写了equals方法也无法避免重复值的插入，只有当有两个hashCode相同的时候，它才会调用equals方法进行比较，如果返回的是true，则不添加，如果返回false，则添加进集合，所以在最后我们给定stu1的hashCode为1的时候，因为equals始终返回false，所有两个stu1均存到了集合中。</p>
+<p>至此，我们搞清楚了HashSet的存储机制，但对于hashCode方法的重写，又会使得我们头疼了，如何使属性相同的hashCode不同呢？好在有Eclipse帮助我们，只要在Student类中右击-&gt;source-&gt;重写hashCode方法和equals方法,在弹出的窗口中选择相关属性即可，作为小白的我，不得不感叹Eclipse的伟大之处</p>
+]]></content>
+      
+        <categories>
+            
+            <category> Java </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> Java </tag>
+            
+            <tag> HashSet </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[我的第一篇博客]]></title>
+      <url>/2017/09/14/hello-world/</url>
+      <content type="html"><![CDATA[<p>很早之前就在github上申请了github pages，想着搭建一个属于自己的博客，但因为人懒，很多笔记都记在了有道云笔记上，没有整理成博客的好习惯。用有道云笔记虽然也可以起到一定的总结作用，但是毕竟只是给自己看的，所以并没有很用心，<br>所以写成的东西也只是用到的时候，自己再翻出了笔记回忆一下，没有起到温故知新的作用。<br><a id="more"></a></p>
+<p>最近看到一个学长的博客，感触良多，觉得养成一个总结知识，整理成博客的好习惯是多么的重要，一方面是对自己学习的督促，另一方面，也是与他人学习交流的好途径，因此，得空用hexo搭建了这个博客。因为是穷学生，用不起长期的电脑，就用很早之前的github pages托管了，而且我要整理的内容也不多，这个方案完全可以满足我的需求。</p>
+<p>有了平台之后，接下来就是好习惯的培养了。近期的计划是先将之前的一些笔记整理上来，之后再陆续把学习生活中的心得记录到此，希望自己可以养成一个好习惯吧。 (*￣︶￣)</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 随想 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 随想 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[使用httpd搭建内网yum源]]></title>
+      <url>/2017/09/14/private_yum/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
+<ul>
+<li>将Base Repo配置成阿里的yum源<blockquote>
+<p>具体方法参看 <a href="https://mirrors.aliyun.com/help/centos" target="_blank" rel="external">Ali-OSM</a>进行配置</p>
+</blockquote>
+</li>
+<li>搭建梯子，科学上网<br>阿里的yum源虽然解决了大部分软件的安装问题，但它毕竟没有包罗万象，总是有一些软件是阿里源中没有的（如ambari); 而搭建梯子对于安装动辄上百兆的软件来说可以说是杯水车薪。因此，我们有必要搭建内网的yum源，方便软件的下载与版本的统一。这篇文章是我在使用Ambari的时候，由于安装hadoop集群时多个组件出现网络超时问题，搭建了一个内网hdp的yum源。</li>
+</ul>
+<a id="more"></a>
+<h1 id="搭建准备"><a href="#搭建准备" class="headerlink" title="搭建准备"></a>搭建准备</h1><p>内网yum源的实质是在内网环境中，选择一台电脑搭建一个服务器，将下载好的压缩包解压到服务器的目录下，作为静态资源以供内网中的电脑进行访问。<br>本次搭建使用了三台虚拟机中的一台进行搭建。使用httpd作为服务器。</p>
+<h1 id="使用httpd搭建静态资源服务器"><a href="#使用httpd搭建静态资源服务器" class="headerlink" title="使用httpd搭建静态资源服务器"></a>使用httpd搭建静态资源服务器</h1><ol>
+<li>安装httpd  </li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ yum install -y httpd</div></pre></td></tr></table></figure>
+<ol>
+<li>配置</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">$ whereis httpd</div><div class="line">httpd: /usr/sbin/httpd /usr/lib64/httpd /etc/httpd /usr/share/httpd /usr/share/man/man8/httpd.8.gz</div><div class="line">$ vi /etc/httpd/conf/httpd.conf</div><div class="line"># port</div><div class="line">Listen 8081</div></pre></td></tr></table></figure>
+<ol>
+<li>启动</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ apachectl start</div></pre></td></tr></table></figure>
+<ol>
+<li>验证是否启动成功<br>在浏览器中输入 <code>http://{IP}:8081</code>，查看是否可以访问<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/7223940.jpg" alt="image"><br>由上图所示，httpd服务器搭建完成，它的存放目录在<code>/var/www/html/</code>下</li>
+</ol>
+<h1 id="准备源包"><a href="#准备源包" class="headerlink" title="准备源包"></a>准备源包</h1><ol>
+<li>下载Ambari源包</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ wget http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.4.2.0/ambari-2.4.2.0-centos7.tar.gz</div></pre></td></tr></table></figure>
+<ol>
+<li>创建ambari目录</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ cd /var/www/html/ &amp;&amp; mkdir ambari</div></pre></td></tr></table></figure>
+<ol>
+<li>将源包解压到ambari目录下</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ tar zxvf ambari-2.4.2.0-centos7.tar.gz -C /var/www/html/ambari/AMBARI-2.4.2.0</div></pre></td></tr></table></figure>
+<ol>
+<li>验证<br>浏览器访问<code>http://{IP}:8081/ambari</code>,可以看到AMBARI-2.4.2.0目录<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/46506246.jpg" alt="image"><h1 id="配置repo文件"><a href="#配置repo文件" class="headerlink" title="配置repo文件"></a>配置repo文件</h1></li>
+<li>下载repo文件</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ wget http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.4.2.0/ambari.repo</div></pre></td></tr></table></figure>
+<ol>
+<li>配置Ambari本地源</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ cp ambari.repo /etc/yum.repos.d/</div></pre></td></tr></table></figure>
+<ol>
+<li>修改repo文件，使其访问内网yum源</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">$ cat /etc/yum.repos.d/ambari.repo</div><div class="line">#VERSION_NUMBER=2.1.1-236</div><div class="line"></div><div class="line">[Updates-ambari-2.1.1]</div><div class="line">name=ambari-2.1.1 - Updates</div><div class="line">baseurl=http://&#123;IP&#125;:8081/ambari/AMBARI-2.4.2.0/AMBARI-2.4.2.0/centos7/2.4.2.0-136/</div><div class="line">gpgcheck=1</div><div class="line">gpgkey=http://&#123;IP&#125;:8081/ambari/AMBARI-2.4.2.0/AMBARI-2.4.2.0/centos7/2.4.2.0-136/RPM-GPG-KEY/RPM-GPG-KEY-Jenkins</div><div class="line">enabled=1</div><div class="line">priority=1</div></pre></td></tr></table></figure>
+<ul>
+<li><strong>注意：</strong> baseurl和gpgkey的路径必须可以访问</li>
+</ul>
+<ol>
+<li>生成缓存</li>
+</ol>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ yum makecache</div></pre></td></tr></table></figure>
+<p>如果没有任何报错的话，说明内网yum源配置成功，可以开心的安装ambari了，速度溜溜的。</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 内网yum源 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+  
+  
+</search>

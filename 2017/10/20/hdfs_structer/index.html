@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.3" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.3">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.3">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.3">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.3" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hadoop,hdfs目录结构," />
+
+
+
+
+
+  <link rel="alternate" href="/atom.xml" title="记忆碎片" type="application/atom+xml" />
+
+
+
+
+
+
+<meta name="description" content="前言本文主要讲解了HDFS是如何在磁盘上组织永久性数据的，主要从NameNode、Secondary NameNode和DataNode的目录结构以及fsimage和edits文件几个方面进行介绍，了解这些文件的用法有助于进行故障诊断和故障检出。">
+<meta name="keywords" content="hadoop,hdfs目录结构">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HDFS永久性数据结构">
+<meta property="og:url" content="http://www.wangjialong.cc/2017/10/20/hdfs_structer/index.html">
+<meta property="og:site_name" content="记忆碎片">
+<meta property="og:description" content="前言本文主要讲解了HDFS是如何在磁盘上组织永久性数据的，主要从NameNode、Secondary NameNode和DataNode的目录结构以及fsimage和edits文件几个方面进行介绍，了解这些文件的用法有助于进行故障诊断和故障检出。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/17-10-16/61956212.jpg">
+<meta property="og:updated_time" content="2017-10-24T12:04:15.349Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="HDFS永久性数据结构">
+<meta name="twitter:description" content="前言本文主要讲解了HDFS是如何在磁盘上组织永久性数据的，主要从NameNode、Secondary NameNode和DataNode的目录结构以及fsimage和edits文件几个方面进行介绍，了解这些文件的用法有助于进行故障诊断和故障检出。">
+<meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/17-10-16/61956212.jpg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.3',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://www.wangjialong.cc/2017/10/20/hdfs_structer/"/>
+
+
+
+
+
+  <title>HDFS永久性数据结构 | 记忆碎片</title>
+  
+
+
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+  ga('create', 'UA-106491334-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+
+  <script type="text/javascript">
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?1f747f42c68e406fa30ea2a76a4e3787";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">记忆碎片</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-about">
+          <a href="/about/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-user"></i> <br />
+            
+            关于
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/10/20/hdfs_structer/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zaixiandemiao">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="记忆碎片">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">HDFS永久性数据结构</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-10-20T00:00:00+08:00">
+                2017-10-20
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/hadoop/" itemprop="url" rel="index">
+                    <span itemprop="name">hadoop</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+            <span class="post-meta-divider">|</span>
+            <span class="page-pv">本文总阅读量
+            <span class="busuanzi-value" id="busuanzi_value_page_pv" ></span>
+            </span>
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>本文主要讲解了HDFS是如何在磁盘上组织永久性数据的，主要从NameNode、Secondary NameNode和DataNode的目录结构以及fsimage和edits文件几个方面进行介绍，了解这些文件的用法有助于进行故障诊断和故障检出。</p>
+<a id="more"></a>
+<h1 id="Namenode的目录结构"><a href="#Namenode的目录结构" class="headerlink" title="Namenode的目录结构"></a>Namenode的目录结构</h1><p>NameNode在被格式化之后，会产生如下的目录结构：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">$&#123;dfs.name.dir&#125;/</div><div class="line">|---current/</div><div class="line">    |--- VERSION</div><div class="line">    |--- edits</div><div class="line">    |--- fsimage</div><div class="line">    |--- fstime</div></pre></td></tr></table></figure>
+<ul>
+<li><code>${dfs.name.dir}</code> 是HDFS配置文件的一个属性名，存储着镜像内容，推荐配置为一个NFS的挂载。</li>
+</ul>
+<p>VERSION文件是一个Java属性文件，其中包含了正在运行的HDFS的版本信息，内容如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">namespaceID=134368444</div><div class="line">cTime=0</div><div class="line">storageType=NAME_NODE</div><div class="line">layoutVersion=-18</div></pre></td></tr></table></figure>
+<ul>
+<li><code>namespaceID</code>属性是HDFS文件系统的唯一标识符，是在文件系统首次格式化(<code>hadoop namenode -format</code>)的时候设置的。datanode在注册到NameNode之前都不知道<code>namespaceID</code>的值，因此NameNode可以通过该属性来鉴别是否为新建的DataNode</li>
+<li><code>cTime</code>属性标记了NameNode的创建时间，对于刚格式化的存储系统，该值为0，；但在文件系统升级之后，该值会更新到新的时间戳</li>
+<li><code>storageType</code>属性说明该存储目录(<code>${dfs.name.dir}/current/</code>)</li>
+<li><code>layoutVersion</code>属性是一个负整数，描述HDFS持久性数据结构（也称布局）的版本号，但是与Hadoop发布包的版本号无关。只要HDFS布局变更，版本号变回递减(-1)，此时，HDFS也需要升级。否则，磁盘仍然使用旧版本的布局，新版本的NameNode无法工作。</li>
+</ul>
+<p>NameNode的存储目录中还包含edits、fsimage、和fstime等二进制文件。这些文件都使用Hadoop的Writable对象作为其序列化格式。</p>
+<h1 id="fsimage和edits-文件"><a href="#fsimage和edits-文件" class="headerlink" title="fsimage和edits 文件"></a>fsimage和edits 文件</h1><p>HDFS客户端执行写操作（创建、移动文件）时，这些操作信息都会记录在edits文件中。NameNode在内存中维护HDFS的元数据；当edits日志被修改时，内存中的元数据也会同步更新，该元数据支持客户端的读请求。</p>
+<p>每次执行写操作时，首先修改edits文件，并进行更新和同步。在NameNode向多个目录写数据时，只有所有的写操作均完毕后方才返回成功代码，以确保不会因为机器故障而丢失(所有操作都在edits文件中，可以在恢复时进行相应操作的重演，类似于write ahead log的思想)。</p>
+<p>fsimage是HDFS元数据的一个永久性的checkpoint。由于fsimage很大(可高达几个GB)，如果频繁写，会拖慢系统的运行，因此，并非每一次写操作都会更新该文件。在NameNode发生故障后，可以先将fsimage文件读入内存进行重构，然后执行edits中记录的各项操作，这也是NameNode启动阶段做的事情。</p>
+<p>fsimage包含了HDFS中所有目录和文件inode的序列化信息。每个inode都是一个文件或目录的元数据内部描述。对文件，包含信息有”副本级别”(replication level)、修改时间和访问时间、访问许可、块大小、组成该文件的块等；对于目录，包含的信息有修改时间、访问许可和配额元数据等信息。</p>
+<p>edits文件会无限增长，这虽然不会拖慢NameNode的运行，但会使得NameNode的启动异常耗时，有违用户的期待，因此，secondary NameNode应用而生。</p>
+<p>Secondary NameNode辅助NameNode创建fsimage文件，它主要的功能有两个</p>
+<ul>
+<li>作为备份，在NameNode故障时升级为NameNode提供服务</li>
+<li>定期合并edits和fsimage文件，防止NameNode故障重启时，由于fsimage长时间没有同步，执行edits的恢复操作很耗时。</li>
+</ul>
+<p>Secondary NameNode的工作步骤如下图所示</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-10-16/61956212.jpg" alt=""></p>
+<ol>
+<li>SecondaryNameNode通知NameNode准备提交edits文件，此时主节点将新的写操作数据记录到一个新的文件edits.new中。</li>
+<li>SecondaryNameNode通过HTTP GET方式获取NameNode的fsimage与edits文件（在SecondaryNameNode的current同级目录下可见到 temp.check-point或者previous-checkpoint目录，这些目录中存储着从namenode拷贝来的镜像文件）。</li>
+<li>Secondary NameNode将获取的fsimage文件载入内存，并逐一执行edits文件的操作，产生新的fsimage文件fsimage.chpt</li>
+<li>SecondaryNameNode用HTTP POST方式发送fsimage.ckpt至NameNode。</li>
+<li>NameNode将fsimage.ckpt与edits.new文件分别重命名为fsimage与edits，然后更新fstime，记录检查点执行的时间，到此整个checkpoint过程到此结束。</li>
+</ol>
+<p>最终，NameNode拥有一个更新的fsimage文件和一个更小的edits文件(在Secondary NameNode执行merge时，NameNode可能收到新的写请求)。在NameNode处在安全模式是，管理员可使用<code>hadoop dfsadmin -saveNamespace</code>命令主动创建checkpoint。</p>
+<p>该过程解释了Secondary NameNode和NameNode拥有相近内存需求的原因，因为Secondary NameNode在合并时需要先将fsimage读入内存中。创建checkpoint的触发条件有两个限制：通常情况下，Secondary NameNode每个一小时(fs.checkpoint.period属性设置，以秒为单位)创建一次；此外，当edits文件达到64MB(fs.checkpoint.size属性设置，以字节为单位)，即使没到一小时，也会创建checkpoint。系统每5分钟检查一次edits的大小。</p>
+<h1 id="Secondary-NameNode的目录结构"><a href="#Secondary-NameNode的目录结构" class="headerlink" title="Secondary NameNode的目录结构"></a>Secondary NameNode的目录结构</h1><p>创建checkpoint不仅为NameNode创建了checkpoint，还使得Secondary NameNode也有了一份备份数据(存储在previous.checkpoint目录中)，此数据可用于NameNode元数据的备份</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">$&#123;fs.checkpoint.dir&#125;/</div><div class="line">|---current/</div><div class="line">|   |--- VERSION</div><div class="line">|   |--- edits</div><div class="line">|   |--- fsimage</div><div class="line">|   |--- fstime</div><div class="line">|---previous.checkpoint/</div><div class="line">    |--- VERSION</div><div class="line">    |--- edits</div><div class="line">    |--- fsimage</div><div class="line">    |--- fstime</div></pre></td></tr></table></figure>
+<p>Secondary NameNode的previous.checkpoint/和current/与NameNode的current目录布局相同。在NameNode发生故障时，可以从Secondary NameNode恢复数据。有两种方法实现。</p>
+<ol>
+<li>将相应目录复制到新的NameNode中</li>
+<li>使用-importCheckpoint选项，启动NameNode守护进程，从而是Secondary NameNode用作新的NameNode。</li>
+</ol>
+<h1 id="DataNode的目录结构"><a href="#DataNode的目录结构" class="headerlink" title="DataNode的目录结构"></a>DataNode的目录结构</h1><p>与NameNode不同，DataNode的存储目录是初始阶段自动创建的，不需额外格式化。结构如下：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">$&#123;dfs.data.dir&#125;/</div><div class="line">|---current/</div><div class="line">    |--- VERSION</div><div class="line">    |--- blk_&lt;id_1&gt;</div><div class="line">    |--- blk_&lt;id_1&gt;.meta</div><div class="line">    |--- blk_&lt;id_2&gt;</div><div class="line">    |--- blk_&lt;id_2&gt;.meta</div><div class="line">    |--- ...</div><div class="line">    |--- blk_&lt;id_64&gt;</div><div class="line">    |--- blk_&lt;id_64&gt;.meta</div><div class="line">    |--- subdir0/</div><div class="line">    |--- subdir1/</div><div class="line">    |--- ...</div><div class="line">    |--- subdir63/</div></pre></td></tr></table></figure>
+<p>DataNode的VERSION文件与NameNode的VERSION文件类似，如下所示</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">namespaceID=134368444</div><div class="line">storageID=DS-547717739-172.16.85.1-50010-1236720751627</div><div class="line">cTime=0</div><div class="line">storageType=DATA_NODE</div><div class="line">layoutVersion=-18</div></pre></td></tr></table></figure>
+<p>namespaceID、cTime、layoutVersion都与NameNode中的值相同。namespaceID是DataNode首次访问NameNode时获取的。storageID对每个DataNode来说是唯一的(但对单个DataNode中所有存储目录来说则相同)，NameNode可用该值区分不同DataNode。storageType表明该目录是DataNode的存储结构。</p>
+<p>DataNode的current目录中其他文件都有blk_前缀，包括两种类型：HDFS块文件(仅包含原始数据)和块的元数据(.meta后缀)。块文件包含所存储文件的一部分原始数据(文件分块存储)；元数据包括头部(含版本和类型)及该块各区段的一系列校验和。</p>
+<p>当目录中数据块文件增加到一定规模，DataNode会创建一个子目录来存放新的块和元数据信息。如果当前目录存储到64个(由dfs.datanode.numblocks设置)，就创建一个子目录。最终设计一个高扇出的目录树，即使快数量很多，但目录树的层数也不多。</p>
+<p>如果dfs.data.dir属性指定不同磁盘上的多个目录，数据块会以轮转(round-robin)的方式写到各个目录中。同一个DataNode上的每个磁盘的块不重复，不同DataNode之间的块才可能重复（如三备份原则保证同一机架的两个DataNode备份，不同机架上有一个DataNode备份）</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hadoop/" rel="tag"># hadoop</a>
+          
+            <a href="/tags/hdfs目录结构/" rel="tag"># hdfs目录结构</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/10/19/vmware_addDisk/" rel="next" title="VMware虚拟机添加磁盘">
+                <i class="fa fa-chevron-left"></i> VMware虚拟机添加磁盘
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image"
+                src="/images/avatar.jpg"
+                alt="zaixiandemiao" />
+            
+              <p class="site-author-name" itemprop="name">zaixiandemiao</p>
+              <p class="site-description motion-element" itemprop="description">Sans teeth, sans eyes, sans taste, sans everything</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">14</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">5</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">23</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          <div class="links-of-author motion-element">
+            
+              
+                <span class="links-of-author-item">
+                  <a href="https://github.com/zaixiandemiao" target="_blank" title="GitHub">
+                    
+                      <i class="fa fa-fw fa-github"></i>GitHub</a>
+                </span>
+              
+                <span class="links-of-author-item">
+                  <a href="mailto:794815773@qq.com" target="_blank" title="E-Mail">
+                    
+                      <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                </span>
+              
+            
+          </div>
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Namenode的目录结构"><span class="nav-number">2.</span> <span class="nav-text">Namenode的目录结构</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#fsimage和edits-文件"><span class="nav-number">3.</span> <span class="nav-text">fsimage和edits 文件</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Secondary-NameNode的目录结构"><span class="nav-number">4.</span> <span class="nav-text">Secondary NameNode的目录结构</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#DataNode的目录结构"><span class="nav-number">5.</span> <span class="nav-text">DataNode的目录结构</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zaixiandemiao</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.3</div>
+
+
+
+
+        
+<div class="busuanzi-count">
+  <script async src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+  
+    <span class="site-uv">
+      本站访客数
+      <span class="busuanzi-value" id="busuanzi_value_site_uv"></span>
+      
+    </span>
+  
+
+  
+    <span class="site-pv">
+      本站总访问数
+      <span class="busuanzi-value" id="busuanzi_value_site_pv"></span>
+      
+    </span>
+  
+</div>
+
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.3"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.3"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.3"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.3"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.3"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.3"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.3"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

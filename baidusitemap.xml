@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/10/20/hdfs_structer/</loc>
+    <lastmod>2017-10-24T12:04:15.349Z</lastmod>
+    <data>
+        <display>
+        <title>HDFS永久性数据结构</title>
+        <pubTime>2017-10-19T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>hdfs目录结构</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/10/19/vmware_addDisk/</loc>
+    <lastmod>2017-10-24T12:04:00.438Z</lastmod>
+    <data>
+        <display>
+        <title>VMware虚拟机添加磁盘</title>
+        <pubTime>2017-10-18T16:00:00.000Z</pubTime>
+        
+        <tag>运维</tag>
+         
+        <tag>VMware</tag>
+         
+        <tag>新增硬盘</tag>
+         
+         
+           
+             
+              <breadCrumb title="运维" url="http://www.wangjialong.cc/categories/%E8%BF%90%E7%BB%B4/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/10/10/shuffle/</loc>
+    <lastmod>2017-10-24T12:03:45.362Z</lastmod>
+    <data>
+        <display>
+        <title>MapReduce中的shuffle详解</title>
+        <pubTime>2017-10-09T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>MapReduce</tag>
+         
+        <tag>shuffle</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/29/leetcode55/</loc>
+    <lastmod>2017-10-24T12:03:30.838Z</lastmod>
+    <data>
+        <display>
+        <title>LeetCode 55 Jump Game从回溯到动态规划</title>
+        <pubTime>2017-09-28T16:00:00.000Z</pubTime>
+        
+        <tag>Java</tag>
+         
+        <tag>LeetCode、动态规划</tag>
+         
+         
+           
+             
+              <breadCrumb title="algorithm" url="http://www.wangjialong.cc/categories/algorithm/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/29/zookeeper1/</loc>
+    <lastmod>2017-10-24T12:03:15.371Z</lastmod>
+    <data>
+        <display>
+        <title>Zookeeper是动物管理员吗</title>
+        <pubTime>2017-09-28T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>zookeeper</tag>
+         
+        <tag>HBase</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/27/etcd&zookeeper/</loc>
+    <lastmod>2017-10-24T12:03:04.431Z</lastmod>
+    <data>
+        <display>
+        <title>zookeeper与etcd的类比</title>
+        <pubTime>2017-09-26T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>zookeeper</tag>
+         
+        <tag>etcd</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/26/mapreduce1/</loc>
+    <lastmod>2017-10-24T12:02:50.503Z</lastmod>
+    <data>
+        <display>
+        <title>MapReduce1的工作原理</title>
+        <pubTime>2017-09-25T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>MapReduce1</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/25/ambari_info/</loc>
+    <lastmod>2017-10-24T12:02:34.305Z</lastmod>
+    <data>
+        <display>
+        <title>Ambari 功能简介</title>
+        <pubTime>2017-09-24T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>运维</tag>
+         
+        <tag>部署</tag>
+         
+        <tag>Ambari</tag>
+         
+         
+           
+             
+              <breadCrumb title="运维" url="http://www.wangjialong.cc/categories/%E8%BF%90%E7%BB%B4/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/21/pachyderm_desc/</loc>
+    <lastmod>2017-10-24T12:02:20.481Z</lastmod>
+    <data>
+        <display>
+        <title>（翻译）Pachyderm介绍-建造一个现代的Hadoop</title>
+        <pubTime>2017-09-20T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>docker</tag>
+         
+        <tag>pachyderm</tag>
+         
+        <tag>翻译</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/17/weiyu/</loc>
+    <lastmod>2017-10-24T12:02:08.658Z</lastmod>
+    <data>
+        <display>
+        <title>2n+1个数中，n个数出现两次，找出只出现一次的数</title>
+        <pubTime>2017-09-16T16:00:00.000Z</pubTime>
+        
+        <tag>Java</tag>
+         
+        <tag>算法</tag>
+         
+        <tag>位与</tag>
+         
+         
+           
+             
+              <breadCrumb title="Java" url="http://www.wangjialong.cc/categories/Java/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/15/hash_set(java)/</loc>
+    <lastmod>2017-10-24T12:01:33.101Z</lastmod>
+    <data>
+        <display>
+        <title>HashSet的存储机制</title>
+        <pubTime>2017-09-14T16:00:00.000Z</pubTime>
+        
+        <tag>Java</tag>
+         
+        <tag>HashSet</tag>
+         
+         
+           
+             
+              <breadCrumb title="Java" url="http://www.wangjialong.cc/categories/Java/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/14/private_yum/</loc>
+    <lastmod>2017-10-24T12:01:19.805Z</lastmod>
+    <data>
+        <display>
+        <title>使用httpd搭建内网yum源</title>
+        <pubTime>2017-09-13T16:00:00.000Z</pubTime>
+        
+        <tag>运维</tag>
+         
+        <tag>内网yum源</tag>
+         
+         
+           
+             
+              <breadCrumb title="运维" url="http://www.wangjialong.cc/categories/%E8%BF%90%E7%BB%B4/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/14/greenBlueDeploy/</loc>
+    <lastmod>2017-10-24T12:01:08.940Z</lastmod>
+    <data>
+        <display>
+        <title>Green Blue Deployment</title>
+        <pubTime>2017-09-13T16:00:00.000Z</pubTime>
+        
+        <tag>运维</tag>
+         
+        <tag>部署</tag>
+         
+         
+           
+             
+              <breadCrumb title="运维" url="http://www.wangjialong.cc/categories/%E8%BF%90%E7%BB%B4/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/14/hello-world/</loc>
+    <lastmod>2017-10-24T12:00:57.899Z</lastmod>
+    <data>
+        <display>
+        <title>我的第一篇博客</title>
+        <pubTime>2017-09-13T16:00:00.000Z</pubTime>
+        
+        <tag>随想</tag>
+         
+         
+           
+             
+              <breadCrumb title="随想" url="http://www.wangjialong.cc/categories/%E9%9A%8F%E6%83%B3/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+    
+    
+    
+</urlset>
