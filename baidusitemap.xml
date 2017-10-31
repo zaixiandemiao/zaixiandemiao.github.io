@@ -4,6 +4,28 @@
 
     
   <url>
+    <loc>http://www.wangjialong.cc/2017/10/31/etcd_install/</loc>
+    <lastmod>2017-10-31T11:24:31.064Z</lastmod>
+    <data>
+        <display>
+        <title>Etcd集群安装</title>
+        <pubTime>2017-10-30T16:00:00.000Z</pubTime>
+        
+        <tag>etcd</tag>
+         
+        <tag>kubernetes</tag>
+         
+         
+           
+             
+              <breadCrumb title="kubernetes" url="http://www.wangjialong.cc/categories/kubernetes/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>http://www.wangjialong.cc/2017/10/20/hdfs_structer/</loc>
     <lastmod>2017-10-24T12:04:15.349Z</lastmod>
     <data>
@@ -173,11 +195,11 @@
         <title>Ambari 功能简介</title>
         <pubTime>2017-09-24T16:00:00.000Z</pubTime>
         
-        <tag>hadoop</tag>
-         
         <tag>运维</tag>
          
         <tag>部署</tag>
+         
+        <tag>hadoop</tag>
          
         <tag>Ambari</tag>
          
