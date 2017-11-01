@@ -115,7 +115,7 @@
 </ul>
 <p>传播事件的为共享挂载，接受传播事件的为从属挂载，同时具有前两者特征的为共享/从属挂载，既不传播又不接受传播事件的为私有挂载，而不可绑定挂载除具有私有挂载约束外，不允许执行绑定挂载，即创建mount namespace时这块文件对象不可被复制。</p>
 <h1 id="network-namespace"><a href="#network-namespace" class="headerlink" title="network namespace"></a>network namespace</h1><p>network namespace提供了关于网络资源的隔离，包括网络设备、IPV4和IPv6协议栈、IP路由表、防火墙、/proc/net目录、/sys/class/net目录、套接字（socket）等。一个物理的网络设备最多存在于一个network namespace中，可以通过创建 veth pair在不同的network namespace间创建管道，以达到通信目的。</p>
-<p><img src="http://cdn.img2.a-site.cn/pic.php?url=aHR0cDovL21tYml6LnFwaWMuY24vbW1iaXovUVAwQVk3dGRKblV4eFJNWjRRcDl0b21GaFFRMDNYVUViTWFab1lmbU9pYk56NDZwc0FMcDk0bHR1MllTNVZHMmZtNGUxTTNwM0tOUmVQN04xZVh2OHlBLzA/d3hfZm10PXBuZw==&amp;_=6553624" alt="image"></p>
+<p><img src="http://img.dockerinfo.net/2016/07/20160721141120.jpg" alt="image"></p>
 <p>Docker网络如上图所示，使用veth pair创建一个独立网络实体，进行通信。veth pair一端放置在容器的namespace中，通常命名为eth0，一端放在原先的namespace中连接物理网络设备，再通过多个设备连入网桥或者进行路由转发，实现通信的目的。</p>
 <h1 id="user-namespace"><a href="#user-namespace" class="headerlink" title="user namespace"></a>user namespace</h1><p>user namespace隔离了安全相关的标识符和属性，包括用户id、用户组id、key（指密钥）以及特殊权限。一个普通用户的进程创建的新进程在新user namespace中可以拥有不同的用户和用户组。也就是说，一个进程在容器外属于没有特权的普通用户，但进入容器却属于拥有所有权限的超级用户，这使得在保护宿主机的安全基础上，为容器提供了极大的自由。</p>
 <ul>
@@ -1136,6 +1136,31 @@
     </entry>
     
     <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[使用httpd搭建内网yum源]]></title>
       <url>/2017/09/14/private_yum/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
@@ -1210,31 +1235,6 @@
             <tag> 运维 </tag>
             
             <tag> 内网yum源 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
-      <title><![CDATA[Green Blue Deployment]]></title>
-      <url>/2017/09/14/greenBlueDeploy/</url>
-      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 运维 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 运维 </tag>
-            
-            <tag> 部署 </tag>
             
         </tags>
         
