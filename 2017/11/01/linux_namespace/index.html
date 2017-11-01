@@ -81,19 +81,19 @@
 
 
 
-<meta name="description" content="背景namespace是Linux内核中实现资源隔离的手段，通过将资源对象划分为不同的namespace，有效的防止了资源的误用，也防止了不同namespace间资源的互扰。Docker的资源隔离在本质上使用了namespace，达到容器资源与宿主机的隔离，防止容器对宿主机的资源侵染。 namespace类型Linux内核提供了6种namespace隔离的系统调用，这也是一个容器所需要做的6项隔离">
+<meta name="description" content="背景namespace是Linux内核中实现资源隔离的手段，通过将资源对象划分为不同的namespace，有效的防止了资源的误用，也防止了不同namespace间资源的互扰。Docker的资源隔离在本质上使用了namespace，达到容器资源与宿主机的隔离，防止容器对宿主机的资源侵染。">
 <meta name="keywords" content="Linux,Docker,namespace">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Linux中的namespace综述">
 <meta property="og:url" content="http://www.wangjialong.cc/2017/11/01/linux_namespace/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="背景namespace是Linux内核中实现资源隔离的手段，通过将资源对象划分为不同的namespace，有效的防止了资源的误用，也防止了不同namespace间资源的互扰。Docker的资源隔离在本质上使用了namespace，达到容器资源与宿主机的隔离，防止容器对宿主机的资源侵染。 namespace类型Linux内核提供了6种namespace隔离的系统调用，这也是一个容器所需要做的6项隔离">
+<meta property="og:description" content="背景namespace是Linux内核中实现资源隔离的手段，通过将资源对象划分为不同的namespace，有效的防止了资源的误用，也防止了不同namespace间资源的互扰。Docker的资源隔离在本质上使用了namespace，达到容器资源与宿主机的隔离，防止容器对宿主机的资源侵染。">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="http://cdn.img2.a-site.cn/pic.php?url=aHR0cDovL21tYml6LnFwaWMuY24vbW1iaXovUVAwQVk3dGRKblV4eFJNWjRRcDl0b21GaFFRMDNYVUViTWFab1lmbU9pYk56NDZwc0FMcDk0bHR1MllTNVZHMmZtNGUxTTNwM0tOUmVQN04xZVh2OHlBLzA/d3hfZm10PXBuZw==&_=6553624">
-<meta property="og:updated_time" content="2017-11-01T08:35:53.733Z">
+<meta property="og:updated_time" content="2017-11-01T08:39:11.762Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Linux中的namespace综述">
-<meta name="twitter:description" content="背景namespace是Linux内核中实现资源隔离的手段，通过将资源对象划分为不同的namespace，有效的防止了资源的误用，也防止了不同namespace间资源的互扰。Docker的资源隔离在本质上使用了namespace，达到容器资源与宿主机的隔离，防止容器对宿主机的资源侵染。 namespace类型Linux内核提供了6种namespace隔离的系统调用，这也是一个容器所需要做的6项隔离">
+<meta name="twitter:description" content="背景namespace是Linux内核中实现资源隔离的手段，通过将资源对象划分为不同的namespace，有效的防止了资源的误用，也防止了不同namespace间资源的互扰。Docker的资源隔离在本质上使用了namespace，达到容器资源与宿主机的隔离，防止容器对宿主机的资源侵染。">
 <meta name="twitter:image" content="http://cdn.img2.a-site.cn/pic.php?url=aHR0cDovL21tYml6LnFwaWMuY24vbW1iaXovUVAwQVk3dGRKblV4eFJNWjRRcDl0b21GaFFRMDNYVUViTWFab1lmbU9pYk56NDZwc0FMcDk0bHR1MllTNVZHMmZtNGUxTTNwM0tOUmVQN04xZVh2OHlBLzA/d3hfZm10PXBuZw==&_=6553624">
 
 
@@ -361,6 +361,7 @@
 
       
         <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>namespace是Linux内核中实现资源隔离的手段，通过将资源对象划分为不同的namespace，有效的防止了资源的误用，也防止了不同namespace间资源的互扰。Docker的资源隔离在本质上使用了namespace，达到容器资源与宿主机的隔离，防止容器对宿主机的资源侵染。</p>
+<a id="more"></a>
 <h1 id="namespace类型"><a href="#namespace类型" class="headerlink" title="namespace类型"></a>namespace类型</h1><p>Linux内核提供了6种namespace隔离的系统调用，这也是一个容器所需要做的6项隔离，具体的隔离类型见下表。</p>
 <table>
 <thead>
