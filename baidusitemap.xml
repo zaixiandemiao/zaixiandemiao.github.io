@@ -5,7 +5,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/11/01/linux_namespace/</loc>
-    <lastmod>2017-11-01T08:45:30.961Z</lastmod>
+    <lastmod>2017-11-01T11:49:34.116Z</lastmod>
     <data>
         <display>
         <title>Linux中的namespace综述</title>
@@ -35,9 +35,9 @@
         <title>Etcd集群安装</title>
         <pubTime>2017-10-30T16:00:00.000Z</pubTime>
         
-        <tag>kubernetes</tag>
-         
         <tag>etcd</tag>
+         
+        <tag>kubernetes</tag>
          
          
            
@@ -175,9 +175,9 @@
         
         <tag>hadoop</tag>
          
-        <tag>etcd</tag>
-         
         <tag>zookeeper</tag>
+         
+        <tag>etcd</tag>
          
          
            
