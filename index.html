@@ -263,6 +263,267 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/11/01/linux_namespace/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zaixiandemiao">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="记忆碎片">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/11/01/linux_namespace/" itemprop="url">Linux中的namespace综述</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-01T00:00:00+08:00">
+                2017-11-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Linux/" itemprop="url" rel="index">
+                    <span itemprop="name">Linux</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>namespace是Linux内核中实现资源隔离的手段，通过将资源对象划分为不同的namespace，有效的防止了资源的误用，也防止了不同namespace间资源的互扰。Docker的资源隔离在本质上使用了namespace，达到容器资源与宿主机的隔离，防止容器对宿主机的资源侵染。</p>
+<h1 id="namespace类型"><a href="#namespace类型" class="headerlink" title="namespace类型"></a>namespace类型</h1><p>Linux内核提供了6种namespace隔离的系统调用，这也是一个容器所需要做的6项隔离，具体的隔离类型见下表。</p>
+<table>
+<thead>
+<tr>
+<th>namespace</th>
+<th>系统调用参数</th>
+<th>隔离对象</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UTS</td>
+<td>CLONE_NEWUTS</td>
+<td>主机名与域名</td>
+</tr>
+<tr>
+<td>IPC</td>
+<td>CLONE_NEWIPC</td>
+<td>信号量、消息队列和共享内存</td>
+</tr>
+<tr>
+<td>PID</td>
+<td>CLONE_NEWPID</td>
+<td>进程编号</td>
+</tr>
+<tr>
+<td>Network</td>
+<td>CLONE_NEWNET</td>
+<td>网络设备、网络栈、端口等</td>
+</tr>
+<tr>
+<td>Mount</td>
+<td>CLONE_NEWNS</td>
+<td>挂载点（文件系统）</td>
+</tr>
+<tr>
+<td>User</td>
+<td>CLONE_NEWUSER</td>
+<td>用户和用户组</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Mount对应的系统调用参数比较特殊，因为它是第一个namespace，所以定义为了CLONE_NEWNS，而不是相关语义</li>
+</ul>
+<p>Docker的启动，首先就是需要一个文件系统，也就是一个挂载点(Mount)，有了它，容器的存储就能和宿主机的隔离开来；紧接着就是需要网络的隔离(Network)，因为容器之间需要通过独立的IP、端口等进行分布式环境下的通信，有了它，容器就能形成一个隔离于宿主机的“内网”环境，此处的“内网”指的是容器组成的网络。有了容器组成的网络，自然而然每个容器都需要一个主机名来在网络中标识自己，因此就需要主机名和域名的隔离(UTS)。容器内部进程可能会形成协同工作，因此需要进程间的通信，自然就需要信号量、消息队列和共享内存的隔离(IPC)。而容器的进程和宿主机的进程如何进行区分呢？自然需要不同的进程号，因此需要进行进程号隔离(PID)。有了这些，进程和文件的权限自然也离不开用户权限的隔离(User)。因此，上表中的6项namespace基本满足了docker所需要的全部隔离对象。</p>
+<h1 id="namespace的API"><a href="#namespace的API" class="headerlink" title="namespace的API"></a>namespace的API</h1><p>Linux内核提供了几种namespace操作的方式，其中包括了系统函数调用和文件描述。系统函数调用包括了clone()、setns()、unshare()，文件描述主要是/proc下的文件。在使用系统调用的时候，通常需要6个参数中的一个或者多个，通过|(位或)连接。6个参数即是表格中的CLONE_NEWUTS、CLONE_NEWIPC、CLONE_NEWPID、CLONE_NEWNET、CLONE_NEWNS和CLONE_NEWUSER。</p>
+<h2 id="通过clone-创建namespace"><a href="#通过clone-创建namespace" class="headerlink" title="通过clone()创建namespace"></a>通过clone()创建namespace</h2><p>使用clone()来创建一个独立namespace的进程，是最常见的做法，也是Docker使用namespace最基本的方法，它在创建一个进程的同时，顺带创建了一个独立的namespace。调用方式如下：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">int clone(int (*child_func)(void *), void *child_stack, int flags, void *args)</div></pre></td></tr></table></figure>
+<p>clone()实际上是fork()的一种更通用的实现，它通过flags来控制使用多少功能，一共有20多种CLONE_*的flag参数。clone函数的参数说明如下：</p>
+<ul>
+<li>child_func传入子进程运行的程序主函数</li>
+<li>child_stack传入子进程的栈空间</li>
+<li>flags表示使用哪些CLONE_*标志位，与namespace相关的为上面提到的6个。</li>
+<li>args用于传入用户参数。</li>
+</ul>
+<h2 id="proc-pid-ns文件"><a href="#proc-pid-ns文件" class="headerlink" title="/proc/[pid]/ns文件"></a>/proc/[pid]/ns文件</h2><p>用户可以在/proc/[pid]/ns文件下看到指向不同namespace号的文件，效果如下。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># ls -l /proc/$$/ns</span></div><div class="line">total 0</div><div class="line">lrwxrwxrwx. 1 root root 0 Oct 31 18:58 ipc -&gt; ipc:[4026531839]</div><div class="line">lrwxrwxrwx. 1 root root 0 Oct 31 18:58 mnt -&gt; mnt:[4026531840]</div><div class="line">lrwxrwxrwx. 1 root root 0 Oct 31 18:58 net -&gt; net:[4026531956]</div><div class="line">lrwxrwxrwx. 1 root root 0 Oct 31 18:58 pid -&gt; pid:[4026531836]</div><div class="line">lrwxrwxrwx. 1 root root 0 Oct 31 18:58 user -&gt; user:[4026531837]</div><div class="line">lrwxrwxrwx. 1 root root 0 Oct 31 18:58 uts -&gt; uts:[4026531838]</div></pre></td></tr></table></figure>
+<ul>
+<li>形如[4026531839]即为namespace号</li>
+<li>$$是shell中表示当前运行的进程ID号</li>
+</ul>
+<p>若两个进程指向的namespace号相同，就说明它们在同一个namespace下。/proc/[pid]/ns里的link文件一旦被打开，只要该文件描述符存在，即使该namespace下所有进程都已经结束，这个namespace也会存在，可以通过文件描述符将后续进程加入进来。Docker就是通过文件描述符定位和加入namespace的。</p>
+<p>通过–bind方式挂载可以起到同样作用。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># touch ~/uts</span></div><div class="line"><span class="comment"># mount --bind /proc/27514/ns/uts ~/uts</span></div></pre></td></tr></table></figure>
+<p>上述命令将~/uts文件与该namespace文件绑定，可以通过~/uts文件来使得后续进程加入该namespace中。</p>
+<h2 id="setns-加入已存在的namespace"><a href="#setns-加入已存在的namespace" class="headerlink" title="setns()加入已存在的namespace"></a>setns()加入已存在的namespace</h2><p>上面使用挂载方式将namespace保留下来，可以使用setns()系统调用加入该namespace，使用方法如下。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">setns</span><span class="params">(<span class="keyword">int</span> fd, <span class="keyword">int</span> nstype)</span></span>;</div></pre></td></tr></table></figure>
+<ul>
+<li>参数fd表示要加入namespace的文件描述符，可以通过open()，打开挂载的文件(如~/uts）获得。</li>
+<li>nstype让调用者可以检查fd指向的namespace是否符合要求。为0表示不检查。</li>
+</ul>
+<p>典型用法如下</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">fd=open(argv[<span class="number">1</span>], O_RDONLY);</div><div class="line">setns(fd, <span class="number">0</span>);</div><div class="line">execvp(argv[<span class="number">2</span>], &amp;argv[<span class="number">2</span>]);</div></pre></td></tr></table></figure>
+<p>假设该程序编译为setns-test</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># ./setns-test ~/uts /bin/bash</span></div></pre></td></tr></table></figure>
+<p>可以在新加入的namespace中执行shell命令了。</p>
+<h2 id="unshare-在原进程上进行namespace隔离"><a href="#unshare-在原进程上进行namespace隔离" class="headerlink" title="unshare()在原进程上进行namespace隔离"></a>unshare()在原进程上进行namespace隔离</h2><p>unshare()运行在原进程上，不需要启动新进程。</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">unshare</span><span class="params">(<span class="keyword">int</span> flags)</span></span>;</div></pre></td></tr></table></figure>
+<p>unshare()可以在不启动新进程的前提下，跳出原先的namespace进行操作，以达到隔离的目的。</p>
+<h1 id="UTS-namespace"><a href="#UTS-namespace" class="headerlink" title="UTS namespace"></a>UTS namespace</h1><p>UTS(UNIX Time-sharing System) namespace提供了主机名和域名的隔离，这样每个docker都可以拥有独立的主机名和域名，在网络上可以被视为一个独立的节点，而非宿主机上的一个进程。Docker中，每个镜像基本都以自身所提供的服务名称来命名镜像的hostname，且不会对宿主机有任何影响，其原理就是利用了UTS namespace。</p>
+<h1 id="IPC-namespace"><a href="#IPC-namespace" class="headerlink" title="IPC namespace"></a>IPC namespace</h1><p>进程间通信(Inter-Process Communication)涉及的IPC资源包括常见的信号量、消息队列和共享内存。申请IPC资源就申请了一个全局唯一的32位ID，所以IPC namespace实际上包含了系统IPC标识符以及实现POSIX消息队列的文件系统。在同一个IPC namespace下的进程彼此可见，不同IPC namespace下的进程则互相不可见。</p>
+<p>Docker使用IPC namespace实现了容器与宿主机、容器与容器之间的IPC隔离。</p>
+<h1 id="PID-namespace"><a href="#PID-namespace" class="headerlink" title="PID namespace"></a>PID namespace</h1><p>PID namespace隔离对进程PID重新编号，使得两个不同namespace下的进程可以有相同的PID。每个PID namespace都有自己的计数器。内核为所有的PID namespace维护了一个树状结构，最顶层的为系统初始时创建，为root namespace。树状结构中的父子节点对应的为namespace的父子关系。父节点可以看到子节点中的进程，并可以通过信号对子节点中进程产生影响。反之，子节点无法看到父节点中德任何内容。</p>
+<ul>
+<li>每个PID namespace中的第一个进程“PID 1”，就像Linux中的init进程一样，拥有特权</li>
+<li>一个namespace中的进程不能通过kill或ptrace影响父节点或兄弟节点中的进程。</li>
+<li>如果在新的PID namespace中重新挂载/proc文件系统，会发现只显示同属一个PID namespace中的其他进程</li>
+<li>在root namespace中可以看到所有进程，并可以通过递归包含所有子节点中进程。</li>
+</ul>
+<p>因此，要实现外部监控Docker运行的程序，可以通过监控Docker daemon所在的PID namespace下的所有进程及其子进程，在进行筛选即可。</p>
+<h1 id="mount-namespace"><a href="#mount-namespace" class="headerlink" title="mount namespace"></a>mount namespace</h1><p>mount namespace通过隔离文件系统挂载点来对文件系统进行隔离保护，隔离后，不同mount namespace下的文件结构变化互不影响。可以通过/proc/[pid]/mounts查看到所有挂载在当前namespace中的文件系统，还可以通过/proc/[pid]/mountstats看到文件设备的统计信息，包括挂载文件的名字、文件系统类型、挂载位置等。</p>
+<p>进程在创建mount namespace时，会把当前的文件结构复制给新的namespace。新的namespace中所有的mount操作都只影响自身的文件系统，对外界不影响。但若父节点进程中挂载了一个CD-ROM，此时子节点namespace无法自动挂载该CD-ROM。</p>
+<p>挂载传播定义了挂载对象之间的关系，包括共享关系和从属关系。</p>
+<ul>
+<li><strong>共享关系</strong>。若两个挂载对象具有共享关系，则一个挂载对象中的挂载事件会传播到另一个挂载对象中。反之亦然。</li>
+<li><strong>从属关系</strong>。若两个挂载对象形成从属关系，则一个挂载对象中的挂载事件会传播到另一个挂载对象中，但是反之不行。</li>
+</ul>
+<p>一个挂载状态可能为以下中的一种：</p>
+<ul>
+<li>共享挂载</li>
+<li>从属挂载</li>
+<li>共享/从属挂载</li>
+<li>私有挂载</li>
+<li>不可绑定挂载</li>
+</ul>
+<p>传播事件的为共享挂载，接受传播事件的为从属挂载，同时具有前两者特征的为共享/从属挂载，既不传播又不接受传播事件的为私有挂载，而不可绑定挂载除具有私有挂载约束外，不允许执行绑定挂载，即创建mount namespace时这块文件对象不可被复制。</p>
+<h1 id="network-namespace"><a href="#network-namespace" class="headerlink" title="network namespace"></a>network namespace</h1><p>network namespace提供了关于网络资源的隔离，包括网络设备、IPV4和IPv6协议栈、IP路由表、防火墙、/proc/net目录、/sys/class/net目录、套接字（socket）等。一个物理的网络设备最多存在于一个network namespace中，可以通过创建 veth pair在不同的network namespace间创建管道，以达到通信目的。</p>
+<p><img src="http://cdn.img2.a-site.cn/pic.php?url=aHR0cDovL21tYml6LnFwaWMuY24vbW1iaXovUVAwQVk3dGRKblV4eFJNWjRRcDl0b21GaFFRMDNYVUViTWFab1lmbU9pYk56NDZwc0FMcDk0bHR1MllTNVZHMmZtNGUxTTNwM0tOUmVQN04xZVh2OHlBLzA/d3hfZm10PXBuZw==&amp;_=6553624" alt="image"></p>
+<p>Docker网络如上图所示，使用veth pair创建一个独立网络实体，进行通信。veth pair一端放置在容器的namespace中，通常命名为eth0，一端放在原先的namespace中连接物理网络设备，再通过多个设备连入网桥或者进行路由转发，实现通信的目的。</p>
+<h1 id="user-namespace"><a href="#user-namespace" class="headerlink" title="user namespace"></a>user namespace</h1><p>user namespace隔离了安全相关的标识符和属性，包括用户id、用户组id、key（指密钥）以及特殊权限。一个普通用户的进程创建的新进程在新user namespace中可以拥有不同的用户和用户组。也就是说，一个进程在容器外属于没有特权的普通用户，但进入容器却属于拥有所有权限的超级用户，这使得在保护宿主机的安全基础上，为容器提供了极大的自由。</p>
+<ul>
+<li>user namespace被创建后，第一个进程被赋予了该namespace中的全部权限，这样该init进程就可以完成所有必要的初始化工作，而不会因为权限不足出现错误。</li>
+<li>从namespace内部观察的UID和GID已经与外部不同，默认为65534，表示尚未与外部namespace用户映射。此时可以进行映射，以保证当涉及一些外部namespace操作时，系统可以检验其权限。</li>
+<li>用户在新namespace中有全部权限，但他在创建它的父namespace中不含任何权限。因此即使root用户调用clone在user namespace创建了新用户，它在外部也没有任何权限。</li>
+<li>user namespace的创建其实是一个层层嵌套的树状结构。最上层是root namespace，新创建的每个user namespace都有一个父节点，以及零个或多个子节点。</li>
+</ul>
+<p>Docker不仅使用了user namespace，还使用了在user namespace中涉及的Capabilities机制。Linux把原来和超级用户相关的高级权限划分为不同的单元，称为Capabilities。这样管理员可以独立的对特定的Capabilities进行使用和禁止。Docker同时使用两者，在很大程度上加强了容器的安全性。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>namespace是一个在很多地方都有应用的概念，Linux使用该概念进行了6项资源的限制，对资源的使用进行了保护。Docker起源于Linux，利用namespace达成了容器与宿主机、容器与容器间的资源隔离。利用namespace，我们可以在容器中为所欲为，而对宿主机没有丝毫的影响，这也是容器的便利之一。</p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/10/31/etcd_install/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -1564,152 +1825,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/09/21/pachyderm_desc/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zaixiandemiao">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.jpg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="记忆碎片">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2017/09/21/pachyderm_desc/" itemprop="url">（翻译）Pachyderm介绍-建造一个现代的Hadoop</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-21T00:00:00+08:00">
-                2017-09-21
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/hadoop/" itemprop="url" rel="index">
-                    <span itemprop="name">hadoop</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>最近在调研时发现了Pachyderm这个项目，感觉他们做的工作挺有意思的。Pachyderm将Docker和Hadoop联合起来，旨在使得大数据分析的过程更加便捷，众多非Java语言的工具也可以方便的使用到大数据的分析中来，并在HDFS的基础上增加了版本控制，使得数据可以进行增量分析。我在Medium上看到一篇相关介绍，讲的比较详细，原文是英文的，因此翻译下来分享一下，也方便自己之后的查阅。 原文链接 <a href="https://medium.com/pachyderm-data/lets-build-a-modern-hadoop-4fc160f8d74f" target="_blank" rel="external">Let’s Build a modern Hadoop</a></p>
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2017/09/21/pachyderm_desc/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -1764,7 +1879,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">15</span>
+                  <span class="site-state-item-count">16</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1775,7 +1890,7 @@
               
               <div class="site-state-item site-state-categories">
                 <a href="/categories/index.html">
-                  <span class="site-state-item-count">6</span>
+                  <span class="site-state-item-count">7</span>
                   <span class="site-state-item-name">分类</span>
                 </a>
               </div>
@@ -1786,7 +1901,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">24</span>
+                  <span class="site-state-item-count">27</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
