@@ -5,7 +5,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/11/04/java_collection/</loc>
-    <lastmod>2017-11-04T15:36:04.791Z</lastmod>
+    <lastmod>2017-11-04T15:42:17.830Z</lastmod>
     <data>
         <display>
         <title>Collection简介</title>
@@ -57,9 +57,9 @@
         <title>Etcd集群安装</title>
         <pubTime>2017-10-30T16:00:00.000Z</pubTime>
         
-        <tag>kubernetes</tag>
-         
         <tag>etcd</tag>
+         
+        <tag>kubernetes</tag>
          
          
            
@@ -195,11 +195,11 @@
         <title>zookeeper与etcd的类比</title>
         <pubTime>2017-09-26T16:00:00.000Z</pubTime>
         
-        <tag>etcd</tag>
-         
         <tag>hadoop</tag>
          
         <tag>zookeeper</tag>
+         
+        <tag>etcd</tag>
          
          
            
@@ -241,11 +241,11 @@
         <title>Ambari 功能简介</title>
         <pubTime>2017-09-24T16:00:00.000Z</pubTime>
         
-        <tag>hadoop</tag>
-         
         <tag>运维</tag>
          
         <tag>部署</tag>
+         
+        <tag>hadoop</tag>
          
         <tag>Ambari</tag>
          

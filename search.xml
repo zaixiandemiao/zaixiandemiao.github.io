@@ -6,6 +6,7 @@
       <title><![CDATA[Collection简介]]></title>
       <url>/2017/11/04/java_collection/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>Java编程中集合类可以说给我们提供了很多的便利，在享受它带来的便利的时候，有时候也会想它的内部是怎么实现的，近期给自己定了个小目标，就是把Collection接口相关的jdk源码看一下，进行一个系统的总结和梳理，一方面提升自己源码阅读的能力，另一方面，通过阅读大神的代码，是自己对于集合这块的数据结构有个更加深刻的了解，对自己以后的使用相信也会有很大的益处。因为自己平时其他的事情也比较多，而且jdk1.8中相关的类也比较多，就先定一个月的时间吧，截止日期12月1日，希望可以完成。</p>
+<a id="more"></a>
 <h1 id="Collection体系综述"><a href="#Collection体系综述" class="headerlink" title="Collection体系综述"></a>Collection体系综述</h1><p>阅读源码首先得有一个总体的结构认识，不然直接一头扎到类中的每个方法实现细节，只能是盲人摸象，摸到啥算啥。因此，我决定从Java SE 1.8的官方API入手，先梳理Collection这个核心接口，搞清楚它的父接口、子接口以及实现类，形成一个宏观的认识，然后再对它的子接口及其实现类分模块进行梳理，相信会对之后的阅读有一个引导作用。</p>
 <p>Collection接口的关系图如下：</p>
 <p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-4/24208556.jpg" alt=""></p>
@@ -362,9 +363,9 @@
         
         <tags>
             
-            <tag> kubernetes </tag>
-            
             <tag> etcd </tag>
+            
+            <tag> kubernetes </tag>
             
         </tags>
         
@@ -806,11 +807,11 @@
         
         <tags>
             
-            <tag> etcd </tag>
-            
             <tag> hadoop </tag>
             
             <tag> zookeeper </tag>
+            
+            <tag> etcd </tag>
             
         </tags>
         
@@ -1030,11 +1031,11 @@
         
         <tags>
             
-            <tag> hadoop </tag>
-            
             <tag> 运维 </tag>
             
             <tag> 部署 </tag>
+            
+            <tag> hadoop </tag>
             
             <tag> Ambari </tag>
             
