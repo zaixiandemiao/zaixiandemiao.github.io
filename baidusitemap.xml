@@ -4,6 +4,28 @@
 
     
   <url>
+    <loc>http://www.wangjialong.cc/2017/11/04/java_collection/</loc>
+    <lastmod>2017-11-04T15:36:04.791Z</lastmod>
+    <data>
+        <display>
+        <title>Collection简介</title>
+        <pubTime>2017-11-03T16:00:00.000Z</pubTime>
+        
+        <tag>Java</tag>
+         
+        <tag>Collection</tag>
+         
+         
+           
+             
+              <breadCrumb title="Java" url="http://www.wangjialong.cc/categories/Java/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>http://www.wangjialong.cc/2017/11/01/linux_namespace/</loc>
     <lastmod>2017-11-01T11:49:34.116Z</lastmod>
     <data>
@@ -35,9 +57,9 @@
         <title>Etcd集群安装</title>
         <pubTime>2017-10-30T16:00:00.000Z</pubTime>
         
-        <tag>etcd</tag>
-         
         <tag>kubernetes</tag>
+         
+        <tag>etcd</tag>
          
          
            
@@ -173,11 +195,11 @@
         <title>zookeeper与etcd的类比</title>
         <pubTime>2017-09-26T16:00:00.000Z</pubTime>
         
+        <tag>etcd</tag>
+         
         <tag>hadoop</tag>
          
         <tag>zookeeper</tag>
-         
-        <tag>etcd</tag>
          
          
            
@@ -219,11 +241,11 @@
         <title>Ambari 功能简介</title>
         <pubTime>2017-09-24T16:00:00.000Z</pubTime>
         
+        <tag>hadoop</tag>
+         
         <tag>运维</tag>
          
         <tag>部署</tag>
-         
-        <tag>hadoop</tag>
          
         <tag>Ambari</tag>
          
