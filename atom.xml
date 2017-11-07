@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://www.wangjialong.cc/"/>
-  <updated>2017-11-04T15:42:17.830Z</updated>
+  <updated>2017-11-07T07:35:53.212Z</updated>
   <id>http://www.wangjialong.cc/</id>
   
   <author>
@@ -15,6 +15,32 @@
   </author>
   
   <generator uri="http://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>cgroups资源限制</title>
+    <link href="http://www.wangjialong.cc/2017/11/07/cgroups_info/"/>
+    <id>http://www.wangjialong.cc/2017/11/07/cgroups_info/</id>
+    <published>2017-11-06T16:00:00.000Z</published>
+    <updated>2017-11-07T07:35:53.212Z</updated>
+    
+    <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>资源隔离技术namespace通过系统调用构建了一个相对隔离的shell环境，在该环境下资源的使用不会影响宿主机，这已经有“容器”的雏形了。而如何将隔离出来的资源合理的使用，这就需要另一个强大的内核工具——cgroups。它不仅可以限制被namespace隔离的资源，还可以为资源设置权重、计算使用量、操控任务(进程或线程)启停等，Docker通过cgroups进行运行时资源的限制。</p><a id="more"></a><h1 id="cgroups简介"><a href="#cgroups简介" class="headerlink" title="cgroups简介"></a>cgroups简介</h1><p>cgroups最初名为process container，但由于container的多重含义，最后改名为control groups，顾名思义就是把任务放到一个组里，统一进行控制。因此，cgroups控制对象是任务组，一旦一个人物加入了一个组中，就会受到想关联的cgroups的资源限制，这里的资源指的是物理资源(cpu、Memory)。</p><p>cgroups的4个特征:</p><ul><li>cgroups以一个伪文件系统的方式实现，用户态的程序可以通过文件操作实现cgroups的组织管理</li><li>cgroups组织管理的单元可以细到线程级别，用户可以创建和销毁cgroup，实现资源再分配和管理</li><li>所有资源管理都以子系统的方式实现，接口统一</li><li>子任务创建之初与父任务处于同一cgroup</li></ul><h1 id="cgroups的核心功能和术语"><a href="#cgroups的核心功能和术语" class="headerlink" title="cgroups的核心功能和术语"></a>cgroups的核心功能和术语</h1><p>cgroups为不同用户层面的资源管理提供了一个统一化的接口，实现了资源的虚拟化，主要提供了四大功能：</p><ul><li><strong>资源限制</strong>：cgroups可以对任务组使用的资源总额进行限制，如内存上限</li><li><strong>优先级</strong>：通过分配CPU时间片数量及磁盘IO带宽大小，变相控制任务优先级</li><li><strong>资源统计</strong>：统计资源使用量，如CPU使用时长，适用于计费</li><li><strong>任务控制</strong>：cgroups可以对任务执行挂起、恢复等操作。</li></ul><p>cgroups的几个术语</p><ul><li><strong>task(任务)</strong>:表示系统的一个进程或线程</li><li><strong>cgroup(控制组)</strong>:cgroups资源控制的最小单位，表示按某种资源控制标准划分的任务组，包含一个或多个子系统。一个任务可以加入某个cgroup，也可以从某个cgroup迁移到另一个cgroup</li><li><strong>subsystem(子系统)</strong>：资源调度器，如CPU子系统、内存子系统</li><li><strong>hierarchy(层级)</strong>：由一系列cgroup以树状结构排列而成，每个层级绑定子系统进行资源控制。层级中cgroup节点可以有0或多个子节点，子节点继承父节点的子系统。整个操作系统有多个层级。</li></ul><h1 id="cgroups的组织结构和基本规则"><a href="#cgroups的组织结构和基本规则" class="headerlink" title="cgroups的组织结构和基本规则"></a>cgroups的组织结构和基本规则</h1><p>前面说到cgroup是一个树状结构，但系统中多个cgroup构成的并非一个单根结构，而是可以存在多个，最终构成了一个cgroup森林。这样做的目的是，如果只有一个层级，则所有的任务都将被迫绑定其上的所有子系统，这会给某些人物带来不必要的限制。在Docker中，每个子系统独自构成一个层级，这样做非常易于管理。组织结构图如下：</p><p><img src="http://ww1.sinaimg.cn/mw690/aa213e02jw1eup8axdxb5j21fp1hs465.jpg" alt="image"></p><p>上面这个图从整体结构上描述了进程与 cgroups 之间的关系。最下面的P代表一个进程。每一个进程的描述符中有一个指针指向了一个辅助数据结构css_set（cgroups subsystem set）。 指向某一个css_set的进程会被加入到当前css_set的进程链表中。一个进程只能隶属于一个css_set，一个css_set可以包含多个进程，隶属于同一css_set的进程受到同一个css_set所关联的资源限制。</p><p>上图中的”M×N Linkage”说明的是css_set通过辅助数据结构可以与 cgroups 节点进行多对多的关联。但是 cgroups 的实现不允许css_set同时关联同一个cgroups层级结构下多个节点。 这是因为 cgroups 对同一种资源不允许有多个限制配置。</p><p>一个css_set关联多个 cgroups 层级结构的节点时，表明需要对当前css_set下的进程进行多种资源的控制。而一个 cgroups 节点关联多个css_set时，表明多个css_set下的进程列表受到同一份资源的相同限制。</p><p>cgroups、任务、子系统、层级四者间的关系及其基本规则如下：</p><ul><li>同一个层级可以附加一个或多个子系统</li><li>一个已经附加在某个层级上的子系统不能附加到其他含有别的子系统的层级上。</li><li>一个任务不能存在于同一个层级的不同cgroup中，但可以存在不同层级的多个cgroup中。</li><li>刚fork/clone出的子任务在初始状态与其父任务处于同一个cgroup，但子任务允许被移动到不同的cgroup中。</li></ul><h1 id="子系统简介"><a href="#子系统简介" class="headerlink" title="子系统简介"></a>子系统简介</h1><p>子系统就是cgroups的资源控制系统，每种子系统独立地控制一种资源，目前Docker使用如下9种子系统：</p><ul><li>blkio:块设备输入/输出限制，如物理驱动设备(包括磁盘、固态、USB等)。Linux中分为块设备和字符设备两种，块设备以块存储数据，可以进行数据的寻址；字符设备提供连续的数据流，按字节/字符读取，如键盘、串口等。</li><li>cpu: 使用调度程序控制任务对cpu的使用</li><li>cpuacct：自动生成cgroup中任务对CPU资源使用情况的报告</li><li>cpuset: 可以为cgroup中任务数分配独立的cpu(针对多处理器)</li><li>devices: 可以开启或关闭对设备的访问</li><li>freezer: 挂起或恢复cgroup中的任务</li><li>memory: 可以设定cgroup中任务对内存使用量的限定，并自动生成内存使用情况报告</li><li>perf_event: 对cgroup中的任务可以进行统一的性能测试</li><li>net_cls: 使用等级识别符标记网络数据包，从而允许Linux流量控制程序识别从具体cgroup中生成的数据包</li></ul><h1 id="cgroups实现方式"><a href="#cgroups实现方式" class="headerlink" title="cgroups实现方式"></a>cgroups实现方式</h1><p>cgroups的实质是给任务挂上钩子，当任务运行的工程中涉及某种资源时，就会触发钩子上所附带的子系统进行检测，根据资源类别的不同，使用相应的技术进行资源限制和优先级分配。</p><p>cgroup与任务是多对多的关系，它们不直接关联，而是通过一个中间结构把双向的关联信息记录起来，类似于数据库中的中间表。任务结构体task_struct中包含了一个指针，可以查询相应的cgroup情况，同时可以查询子系统的状态，子系统状态中也包含了找到任务的指针。</p><p>一个cgroup创建完成，不管绑定了何种子系统，其目录下都会生成以下几个文件，用来描述cgroup相应信息。</p><ul><li>tasks： 这个文件罗列所有在该cgroup中任务的TID，即所有进程或线程的ID，并不保证有序。</li><li>cgroup.procs: 罗列所有在该cgroup中的TGID(线程组ID)，即线程组中的一个进程的PID。不保证有序和无重复，写一个TGID到这个文件就代表把与其相关的线程加到这个cgroup中。</li><li>notify_on_release: 填0或1，表示cgroup中最后一个任务退出时通知运行release_agent，默认不运行(0)</li><li>release_agent：指定release_agent执行脚本的文件路径，用于自动化卸载无用的cgroup</li></ul><h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>cgroups通过与cgroup关联的子系统，形成了对进程组的资源限制。它一个伪文件系统的方式实现，并可以通过文件操作实现组织管理，最终提供了资源限制、优先级分配、资源统计、任务控制四大功能。</p>]]></content>
+    
+    <summary type="html">
+    
+      &lt;h1 id=&quot;背景&quot;&gt;&lt;a href=&quot;#背景&quot; class=&quot;headerlink&quot; title=&quot;背景&quot;&gt;&lt;/a&gt;背景&lt;/h1&gt;&lt;p&gt;资源隔离技术namespace通过系统调用构建了一个相对隔离的shell环境，在该环境下资源的使用不会影响宿主机，这已经有“容器”的雏形了。而如何将隔离出来的资源合理的使用，这就需要另一个强大的内核工具——cgroups。它不仅可以限制被namespace隔离的资源，还可以为资源设置权重、计算使用量、操控任务(进程或线程)启停等，Docker通过cgroups进行运行时资源的限制。&lt;/p&gt;
+    
+    </summary>
+    
+      <category term="Linux" scheme="http://www.wangjialong.cc/categories/Linux/"/>
+    
+    
+      <category term="Linux" scheme="http://www.wangjialong.cc/tags/Linux/"/>
+    
+      <category term="Docker" scheme="http://www.wangjialong.cc/tags/Docker/"/>
+    
+      <category term="cgroups" scheme="http://www.wangjialong.cc/tags/cgroups/"/>
+    
+  </entry>
   
   <entry>
     <title>Collection简介</title>
@@ -374,6 +400,28 @@
   </entry>
   
   <entry>
+    <title>我的第一篇博客</title>
+    <link href="http://www.wangjialong.cc/2017/09/14/hello-world/"/>
+    <id>http://www.wangjialong.cc/2017/09/14/hello-world/</id>
+    <published>2017-09-13T16:00:00.000Z</published>
+    <updated>2017-10-24T12:00:57.899Z</updated>
+    
+    <content type="html"><![CDATA[<p>很早之前就在github上申请了github pages，想着搭建一个属于自己的博客，但因为人懒，很多笔记都记在了有道云笔记上，没有整理成博客的好习惯。用有道云笔记虽然也可以起到一定的总结作用，但是毕竟只是给自己看的，所以并没有很用心，<br>所以写成的东西也只是用到的时候，自己再翻出了笔记回忆一下，没有起到温故知新的作用。<br><a id="more"></a></p><p>最近看到一个学长的博客，感触良多，觉得养成一个总结知识，整理成博客的好习惯是多么的重要，一方面是对自己学习的督促，另一方面，也是与他人学习交流的好途径，因此，得空用hexo搭建了这个博客。因为是穷学生，用不起长期的电脑，就用很早之前的github pages托管了，而且我要整理的内容也不多，这个方案完全可以满足我的需求。</p><p>有了平台之后，接下来就是好习惯的培养了。近期的计划是先将之前的一些笔记整理上来，之后再陆续把学习生活中的心得记录到此，希望自己可以养成一个好习惯吧。 (*￣︶￣)</p>]]></content>
+    
+    <summary type="html">
+    
+      &lt;p&gt;很早之前就在github上申请了github pages，想着搭建一个属于自己的博客，但因为人懒，很多笔记都记在了有道云笔记上，没有整理成博客的好习惯。用有道云笔记虽然也可以起到一定的总结作用，但是毕竟只是给自己看的，所以并没有很用心，&lt;br&gt;所以写成的东西也只是用到的时候，自己再翻出了笔记回忆一下，没有起到温故知新的作用。&lt;br&gt;
+    
+    </summary>
+    
+      <category term="随想" scheme="http://www.wangjialong.cc/categories/%E9%9A%8F%E6%83%B3/"/>
+    
+    
+      <category term="随想" scheme="http://www.wangjialong.cc/tags/%E9%9A%8F%E6%83%B3/"/>
+    
+  </entry>
+  
+  <entry>
     <title>使用httpd搭建内网yum源</title>
     <link href="http://www.wangjialong.cc/2017/09/14/private_yum/"/>
     <id>http://www.wangjialong.cc/2017/09/14/private_yum/</id>
@@ -401,28 +449,6 @@
       <category term="运维" scheme="http://www.wangjialong.cc/tags/%E8%BF%90%E7%BB%B4/"/>
     
       <category term="内网yum源" scheme="http://www.wangjialong.cc/tags/%E5%86%85%E7%BD%91yum%E6%BA%90/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>我的第一篇博客</title>
-    <link href="http://www.wangjialong.cc/2017/09/14/hello-world/"/>
-    <id>http://www.wangjialong.cc/2017/09/14/hello-world/</id>
-    <published>2017-09-13T16:00:00.000Z</published>
-    <updated>2017-10-24T12:00:57.899Z</updated>
-    
-    <content type="html"><![CDATA[<p>很早之前就在github上申请了github pages，想着搭建一个属于自己的博客，但因为人懒，很多笔记都记在了有道云笔记上，没有整理成博客的好习惯。用有道云笔记虽然也可以起到一定的总结作用，但是毕竟只是给自己看的，所以并没有很用心，<br>所以写成的东西也只是用到的时候，自己再翻出了笔记回忆一下，没有起到温故知新的作用。<br><a id="more"></a></p><p>最近看到一个学长的博客，感触良多，觉得养成一个总结知识，整理成博客的好习惯是多么的重要，一方面是对自己学习的督促，另一方面，也是与他人学习交流的好途径，因此，得空用hexo搭建了这个博客。因为是穷学生，用不起长期的电脑，就用很早之前的github pages托管了，而且我要整理的内容也不多，这个方案完全可以满足我的需求。</p><p>有了平台之后，接下来就是好习惯的培养了。近期的计划是先将之前的一些笔记整理上来，之后再陆续把学习生活中的心得记录到此，希望自己可以养成一个好习惯吧。 (*￣︶￣)</p>]]></content>
-    
-    <summary type="html">
-    
-      &lt;p&gt;很早之前就在github上申请了github pages，想着搭建一个属于自己的博客，但因为人懒，很多笔记都记在了有道云笔记上，没有整理成博客的好习惯。用有道云笔记虽然也可以起到一定的总结作用，但是毕竟只是给自己看的，所以并没有很用心，&lt;br&gt;所以写成的东西也只是用到的时候，自己再翻出了笔记回忆一下，没有起到温故知新的作用。&lt;br&gt;
-    
-    </summary>
-    
-      <category term="随想" scheme="http://www.wangjialong.cc/categories/%E9%9A%8F%E6%83%B3/"/>
-    
-    
-      <category term="随想" scheme="http://www.wangjialong.cc/tags/%E9%9A%8F%E6%83%B3/"/>
     
   </entry>
   
