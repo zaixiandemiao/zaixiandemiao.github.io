@@ -5,7 +5,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/11/07/cgroups_info/</loc>
-    <lastmod>2017-11-07T07:35:53.212Z</lastmod>
+    <lastmod>2017-11-07T07:35:52.000Z</lastmod>
     <data>
         <display>
         <title>cgroups资源限制</title>
@@ -29,7 +29,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/11/04/java_collection/</loc>
-    <lastmod>2017-11-04T15:42:17.830Z</lastmod>
+    <lastmod>2017-11-04T15:42:16.000Z</lastmod>
     <data>
         <display>
         <title>Collection简介</title>
@@ -51,7 +51,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/11/01/linux_namespace/</loc>
-    <lastmod>2017-11-01T11:49:34.116Z</lastmod>
+    <lastmod>2017-11-01T11:49:34.000Z</lastmod>
     <data>
         <display>
         <title>Linux中的namespace综述</title>
@@ -75,7 +75,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/10/31/etcd_install/</loc>
-    <lastmod>2017-10-31T11:24:31.064Z</lastmod>
+    <lastmod>2017-10-31T11:24:30.000Z</lastmod>
     <data>
         <display>
         <title>Etcd集群安装</title>
@@ -97,7 +97,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/10/20/hdfs_structer/</loc>
-    <lastmod>2017-10-24T12:04:15.349Z</lastmod>
+    <lastmod>2017-10-24T12:04:14.000Z</lastmod>
     <data>
         <display>
         <title>HDFS永久性数据结构</title>
@@ -119,7 +119,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/10/19/vmware_addDisk/</loc>
-    <lastmod>2017-10-24T12:04:00.438Z</lastmod>
+    <lastmod>2017-10-24T12:04:00.000Z</lastmod>
     <data>
         <display>
         <title>VMware虚拟机添加磁盘</title>
@@ -143,7 +143,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/10/10/shuffle/</loc>
-    <lastmod>2017-10-24T12:03:45.362Z</lastmod>
+    <lastmod>2017-10-24T12:03:44.000Z</lastmod>
     <data>
         <display>
         <title>MapReduce中的shuffle详解</title>
@@ -167,7 +167,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/29/leetcode55/</loc>
-    <lastmod>2017-10-24T12:03:30.838Z</lastmod>
+    <lastmod>2017-10-24T12:03:30.000Z</lastmod>
     <data>
         <display>
         <title>LeetCode 55 Jump Game从回溯到动态规划</title>
@@ -189,7 +189,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/29/zookeeper1/</loc>
-    <lastmod>2017-10-24T12:03:15.371Z</lastmod>
+    <lastmod>2017-10-24T12:03:14.000Z</lastmod>
     <data>
         <display>
         <title>Zookeeper是动物管理员吗</title>
@@ -213,7 +213,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/27/etcd&zookeeper/</loc>
-    <lastmod>2017-10-24T12:03:04.431Z</lastmod>
+    <lastmod>2017-10-24T12:03:04.000Z</lastmod>
     <data>
         <display>
         <title>zookeeper与etcd的类比</title>
@@ -237,7 +237,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/26/mapreduce1/</loc>
-    <lastmod>2017-10-24T12:02:50.503Z</lastmod>
+    <lastmod>2017-10-24T12:02:50.000Z</lastmod>
     <data>
         <display>
         <title>MapReduce1的工作原理</title>
@@ -259,7 +259,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/25/ambari_info/</loc>
-    <lastmod>2017-10-24T12:02:34.305Z</lastmod>
+    <lastmod>2017-10-24T12:02:34.000Z</lastmod>
     <data>
         <display>
         <title>Ambari 功能简介</title>
@@ -285,7 +285,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/21/pachyderm_desc/</loc>
-    <lastmod>2017-10-24T12:02:20.481Z</lastmod>
+    <lastmod>2017-10-24T12:02:20.000Z</lastmod>
     <data>
         <display>
         <title>（翻译）Pachyderm介绍-建造一个现代的Hadoop</title>
@@ -311,7 +311,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/17/weiyu/</loc>
-    <lastmod>2017-10-24T12:02:08.658Z</lastmod>
+    <lastmod>2017-10-24T12:02:08.000Z</lastmod>
     <data>
         <display>
         <title>2n+1个数中，n个数出现两次，找出只出现一次的数</title>
@@ -335,7 +335,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/15/hash_set(java)/</loc>
-    <lastmod>2017-10-24T12:01:33.101Z</lastmod>
+    <lastmod>2017-10-24T12:01:32.000Z</lastmod>
     <data>
         <display>
         <title>HashSet的存储机制</title>
@@ -357,7 +357,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/14/private_yum/</loc>
-    <lastmod>2017-10-24T12:01:19.805Z</lastmod>
+    <lastmod>2017-10-24T12:01:18.000Z</lastmod>
     <data>
         <display>
         <title>使用httpd搭建内网yum源</title>
@@ -379,7 +379,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/14/greenBlueDeploy/</loc>
-    <lastmod>2017-10-24T12:01:08.940Z</lastmod>
+    <lastmod>2017-10-24T12:01:08.000Z</lastmod>
     <data>
         <display>
         <title>Green Blue Deployment</title>
@@ -401,7 +401,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2017/09/14/hello-world/</loc>
-    <lastmod>2017-10-24T12:00:57.899Z</lastmod>
+    <lastmod>2017-10-24T12:00:56.000Z</lastmod>
     <data>
         <display>
         <title>我的第一篇博客</title>
