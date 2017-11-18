@@ -761,12 +761,12 @@
 <p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
 <h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
 <h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
-<p><img src="http://static.oschina.net/uploads/img/201308/08171344_cqXs.jpg" alt="zookeeper roles"></p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg" alt="zookeeper roles"></p>
 <ul>
 <li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
 </ul>
 <p>集群模型如下:</p>
-<p><img src="http://static.oschina.net/uploads/img/201308/08171345_l5K3.jpg" alt="zookeeper service"></p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg" alt="zookeeper service"></p>
 <p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
 <h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
 <h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
@@ -1446,6 +1446,31 @@
     </entry>
     
     <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[使用httpd搭建内网yum源]]></title>
       <url>/2017/09/14/private_yum/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
@@ -1543,31 +1568,6 @@
         <tags>
             
             <tag> 随想 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
-      <title><![CDATA[Green Blue Deployment]]></title>
-      <url>/2017/09/14/greenBlueDeploy/</url>
-      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 运维 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 运维 </tag>
-            
-            <tag> 部署 </tag>
             
         </tags>
         

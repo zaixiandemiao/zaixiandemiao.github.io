@@ -91,10 +91,10 @@
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/17-9-29/36748004.jpg">
-<meta property="og:image" content="http://static.oschina.net/uploads/img/201308/08171344_cqXs.jpg">
-<meta property="og:image" content="http://static.oschina.net/uploads/img/201308/08171345_l5K3.jpg">
+<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg">
+<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg">
 <meta property="og:image" content="http://www.wuzesheng.com/wp-content/uploads/2013/12/zookeeper-tree.jpg">
-<meta property="og:updated_time" content="2017-11-18T05:57:56.000Z">
+<meta property="og:updated_time" content="2017-11-18T06:04:19.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Zookeeper是动物管理员吗">
 <meta name="twitter:description" content="背景熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。">
@@ -373,12 +373,12 @@
 <p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
 <h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
 <h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
-<p><img src="http://static.oschina.net/uploads/img/201308/08171344_cqXs.jpg" alt="zookeeper roles"></p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg" alt="zookeeper roles"></p>
 <ul>
 <li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
 </ul>
 <p>集群模型如下:</p>
-<p><img src="http://static.oschina.net/uploads/img/201308/08171345_l5K3.jpg" alt="zookeeper service"></p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg" alt="zookeeper service"></p>
 <p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
 <h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
 <h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
