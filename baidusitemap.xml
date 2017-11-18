@@ -4,6 +4,30 @@
 
     
   <url>
+    <loc>http://www.wangjialong.cc/2017/09/29/zookeeper1/</loc>
+    <lastmod>2017-11-18T05:57:56.000Z</lastmod>
+    <data>
+        <display>
+        <title>Zookeeper是动物管理员吗</title>
+        <pubTime>2017-09-28T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>zookeeper</tag>
+         
+        <tag>HBase</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>http://www.wangjialong.cc/2017/11/15/javaList_info/</loc>
     <lastmod>2017-11-15T14:02:07.000Z</lastmod>
     <data>
@@ -205,30 +229,6 @@
            
              
               <breadCrumb title="algorithm" url="http://www.wangjialong.cc/categories/algorithm/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>http://www.wangjialong.cc/2017/09/29/zookeeper1/</loc>
-    <lastmod>2017-10-24T12:03:14.000Z</lastmod>
-    <data>
-        <display>
-        <title>Zookeeper是动物管理员吗</title>
-        <pubTime>2017-09-28T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>zookeeper</tag>
-         
-        <tag>HBase</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
           
         </display>
     </data>

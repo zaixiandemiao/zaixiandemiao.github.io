@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://www.wangjialong.cc/2017/09/29/zookeeper1/</loc>
+    
+    <lastmod>2017-11-18T05:57:56.000Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>http://www.wangjialong.cc/2017/11/15/javaList_info/</loc>
     
     <lastmod>2017-11-15T14:02:07.000Z</lastmod>
@@ -61,13 +68,6 @@
     <loc>http://www.wangjialong.cc/2017/09/29/leetcode55/</loc>
     
     <lastmod>2017-10-24T12:03:30.000Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>http://www.wangjialong.cc/2017/09/29/zookeeper1/</loc>
-    
-    <lastmod>2017-10-24T12:03:14.000Z</lastmod>
     
   </url>
   
