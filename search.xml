@@ -1477,57 +1477,53 @@
 <p>具体方法参看 <a href="https://mirrors.aliyun.com/help/centos" target="_blank" rel="external">Ali-OSM</a>进行配置</p>
 </blockquote>
 </li>
-<li>搭建梯子，科学上网<br>阿里的yum源虽然解决了大部分软件的安装问题，但它毕竟没有包罗万象，总是有一些软件是阿里源中没有的（如ambari); 而搭建梯子对于安装动辄上百兆的软件来说可以说是杯水车薪。因此，我们有必要搭建内网的yum源，方便软件的下载与版本的统一。这篇文章是我在使用Ambari的时候，由于安装hadoop集群时多个组件出现网络超时问题，搭建了一个内网hdp的yum源。</li>
+<li>搭建梯子，科学上网</li>
 </ul>
+<p>阿里的yum源虽然解决了大部分软件的安装问题，但它毕竟没有包罗万象，总是有一些软件是阿里源中没有的（如ambari); 而搭建梯子对于安装动辄上百兆的软件来说可以说是杯水车薪。因此，我们有必要搭建内网的yum源，方便软件的下载与版本的统一。这篇文章是我在使用Ambari的时候，由于安装hadoop集群时多个组件出现网络超时问题，搭建了一个内网hdp的yum源。</p>
 <a id="more"></a>
 <h1 id="搭建准备"><a href="#搭建准备" class="headerlink" title="搭建准备"></a>搭建准备</h1><p>内网yum源的实质是在内网环境中，选择一台电脑搭建一个服务器，将下载好的压缩包解压到服务器的目录下，作为静态资源以供内网中的电脑进行访问。<br>本次搭建使用了三台虚拟机中的一台进行搭建。使用httpd作为服务器。</p>
 <h1 id="使用httpd搭建静态资源服务器"><a href="#使用httpd搭建静态资源服务器" class="headerlink" title="使用httpd搭建静态资源服务器"></a>使用httpd搭建静态资源服务器</h1><ol>
-<li>安装httpd  </li>
-</ol>
+<li><p>安装httpd  </p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ yum install -y httpd</div></pre></td></tr></table></figure>
-<ol>
-<li>配置</li>
-</ol>
+</li>
+<li><p>配置</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">$ whereis httpd</div><div class="line">httpd: /usr/sbin/httpd /usr/lib64/httpd /etc/httpd /usr/share/httpd /usr/share/man/man8/httpd.8.gz</div><div class="line">$ vi /etc/httpd/conf/httpd.conf</div><div class="line"># port</div><div class="line">Listen 8081</div></pre></td></tr></table></figure>
-<ol>
-<li>启动</li>
-</ol>
+</li>
+<li><p>启动</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ apachectl start</div></pre></td></tr></table></figure>
-<ol>
-<li>验证是否启动成功<br>在浏览器中输入 <code>http://{IP}:8081</code>，查看是否可以访问<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/7223940.jpg" alt="image"><br>由上图所示，httpd服务器搭建完成，它的存放目录在<code>/var/www/html/</code>下</li>
+</li>
+<li><p>验证是否启动成功<br>在浏览器中输入 <code>http://{IP}:8081</code>，查看是否可以访问<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/7223940.jpg" alt="image"><br>由上图所示，httpd服务器搭建完成，它的存放目录在<code>/var/www/html/</code>下</p>
+</li>
 </ol>
 <h1 id="准备源包"><a href="#准备源包" class="headerlink" title="准备源包"></a>准备源包</h1><ol>
-<li>下载Ambari源包</li>
-</ol>
+<li><p>下载Ambari源包</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ wget http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.4.2.0/ambari-2.4.2.0-centos7.tar.gz</div></pre></td></tr></table></figure>
-<ol>
-<li>创建ambari目录</li>
-</ol>
+</li>
+<li><p>创建ambari目录</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ cd /var/www/html/ &amp;&amp; mkdir ambari</div></pre></td></tr></table></figure>
-<ol>
-<li>将源包解压到ambari目录下</li>
-</ol>
+</li>
+<li><p>将源包解压到ambari目录下</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ tar zxvf ambari-2.4.2.0-centos7.tar.gz -C /var/www/html/ambari/AMBARI-2.4.2.0</div></pre></td></tr></table></figure>
-<ol>
-<li>验证<br>浏览器访问<code>http://{IP}:8081/ambari</code>,可以看到AMBARI-2.4.2.0目录<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/46506246.jpg" alt="image"><h1 id="配置repo文件"><a href="#配置repo文件" class="headerlink" title="配置repo文件"></a>配置repo文件</h1></li>
-<li>下载repo文件</li>
+</li>
+<li><p>验证<br>浏览器访问<code>http://{IP}:8081/ambari</code>,可以看到AMBARI-2.4.2.0目录<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/46506246.jpg" alt="image"></p>
+</li>
 </ol>
+<h1 id="配置repo文件"><a href="#配置repo文件" class="headerlink" title="配置repo文件"></a>配置repo文件</h1><ol>
+<li><p>下载repo文件</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ wget http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.4.2.0/ambari.repo</div></pre></td></tr></table></figure>
-<ol>
-<li>配置Ambari本地源</li>
-</ol>
+</li>
+<li><p>配置Ambari本地源</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ cp ambari.repo /etc/yum.repos.d/</div></pre></td></tr></table></figure>
-<ol>
-<li>修改repo文件，使其访问内网yum源</li>
-</ol>
+</li>
+<li><p>修改repo文件，使其访问内网yum源</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">$ cat /etc/yum.repos.d/ambari.repo</div><div class="line">#VERSION_NUMBER=2.1.1-236</div><div class="line"></div><div class="line">[Updates-ambari-2.1.1]</div><div class="line">name=ambari-2.1.1 - Updates</div><div class="line">baseurl=http://&#123;IP&#125;:8081/ambari/AMBARI-2.4.2.0/AMBARI-2.4.2.0/centos7/2.4.2.0-136/</div><div class="line">gpgcheck=1</div><div class="line">gpgkey=http://&#123;IP&#125;:8081/ambari/AMBARI-2.4.2.0/AMBARI-2.4.2.0/centos7/2.4.2.0-136/RPM-GPG-KEY/RPM-GPG-KEY-Jenkins</div><div class="line">enabled=1</div><div class="line">priority=1</div></pre></td></tr></table></figure>
 <ul>
 <li><strong>注意：</strong> baseurl和gpgkey的路径必须可以访问</li>
 </ul>
-<ol>
-<li>生成缓存</li>
+</li>
+<li>生成缓存<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ yum makecache</div></pre></td></tr></table></figure>
+</li>
 </ol>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ yum makecache</div></pre></td></tr></table></figure>
 <p>如果没有任何报错的话，说明内网yum源配置成功，可以开心的安装ambari了，速度溜溜的。</p>
 ]]></content>
       
