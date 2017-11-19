@@ -3,6 +3,86 @@
   
     
     <entry>
+      <title><![CDATA[Set家族简介]]></title>
+      <url>/2017/11/19/java_set_info/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>Set家族是Collection Framework中重要的一个分支，它的含义就是数学意义上的set概念，也就是说它的元素满足互斥性，如果e1，e2都属于一个Set，则e1.equals(e2)一定返回false，否则，在添加的时候，后面加入的元素无法被添加进来。Set在存储互斥元素的时候有很好的作用，如果我们希望在一个集合中存储唯一元素，如key值，则可以选择Set的子类进行存储。</p>
+<a id="more"></a>
+<h1 id="Set简述"><a href="#Set简述" class="headerlink" title="Set简述"></a>Set简述</h1><p>Set不能存储相等的两个元素，那么就有一个问题，如果元素存入后改变了怎么办？通常的，一个元素的值得改变如果影响到了equals方法的返回值，Set并没有规定必须抛出异常，但在添加的时候，尽量不要添加会改变equals返回值的元素。</p>
+<p>Set中的方法与父接口中方法签名一致，但我在阅读源码的时候，发现Set还是重写了父接口的方法，这在语法上并不是必要的，在此我就暂且“以小人之心度一下源码大大之意“吧。</p>
+<ul>
+<li>Set中的方法虽然签名与Collection相同，但具体含义不一样，如add方法，Collection是随意添加一个元素，而Set是添加一个之前在集合中不存在的元素</li>
+<li>为了写方法的doc注释，Collection中add方法和Set中add方法的注释不同</li>
+</ul>
+<p>Set家族中有几个重要的成员，HashSet、SortedSet、TreeSet，下面简单介绍一下各自的含义</p>
+<ul>
+<li>HashSet：Set接口的实现类，内部存储结构为Hash表，实际上是由HashMap实现的HashSet</li>
+<li>SortedSet：Set接口的子接口，代表了一类排序的Set，其元素排列顺序为自然排序或者通过具体的comparator比较</li>
+<li>TreeSet：SortedSet的一个实现类，内部存储结构为红黑树，实际是由TreeMap实现的</li>
+</ul>
+<h1 id="HashSet"><a href="#HashSet" class="headerlink" title="HashSet"></a>HashSet</h1><p>HashSet是一个Hash表实现的Set结构，其内部具体存储元素的是HashMap对象(<em>HashMap是Map家族的重要成员，将在Map中进行分析</em>)，其具体代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">private</span> <span class="keyword">transient</span> HashMap&lt;E,Object&gt; map;</div><div class="line"><span class="comment">// Dummy value to associate with an Object in the backing Map</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Object PRESENT = <span class="keyword">new</span> Object();</div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">add</span><span class="params">(E e)</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> map.put(e, PRESENT)==<span class="keyword">null</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>由上面代码可以看出，HashSet中的元素实际上被存储为HashMap的key值，其唯一性由HashMap来保证，而HashMap的value值为一个静态常量PRESENT，它是一个Object对象。该对象用于判断map.remove时的返回值是否与其相同，来确保remove方法正确的删除了指定元素。</p>
+<p>HashSet中有两个比较重要的概念是initialCapacity和loadFactor，它们也是HashMap中的重要概念，在此只做简单的描述，详细的在Map中进行分析。</p>
+<ul>
+<li><code>initialCapacity</code>是bucket的默认大小，bucket也就是Hash表中一个key值对应的存储容量，是为了解决key冲突的，一个理想的Hash表应当是每个key对应一个值，这样可以在O(1)的时间内读取到一个值，但这需要Hash算法能把key值散列的完全没有重复才可以达到，而这在现实中是不可能的，因此bucket的存在就很关键，由此可见HashMap是通过开链法解决冲突的</li>
+<li><code>loadFactor</code>是bucket的默认填充因子，是一个0~1间的小数，代表了一个bucket最多可以填充多少百分比</li>
+</ul>
+<p>HashSet是线程不安全的，如果需要获取一个同步Set，可以使用下面的代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">Set s = Collections.synchronizedSet(<span class="keyword">new</span> HashSet(...));</div></pre></td></tr></table></figure>
+<p>HashSet的iterator也是fail-fast的，如果在iterator遍历时，使用了除iterator的remove方法之外的方法改变了HashSet，则会抛出ConcurrentModificationException，这部分的实现是与</p>
+<h2 id="LinkedHashSet"><a href="#LinkedHashSet" class="headerlink" title="LinkedHashSet"></a>LinkedHashSet</h2><p>LinkedHashSet是HashSet的子类，是从1.4版本开始加入Set家族的(<em>HashSet从1.2就存在了</em>)，它主要解决的问题是HashSet在返回iterator的时候，顺序不统一的问题，因此LinkedHashSet使用了链表的方式，确保了元素的遍历顺序，该顺序与元素插入顺序一致。LinkedHashSet内部使用了LinkedHashMap存储元素值，它的iterator也是调用了LinkedHashMap的iterator方法。</p>
+<p>LinkedHashSet的典型使用场景是客户端展示数据，因为相同的集合，客户端希望展示的数组顺序是一样的，此时可以选择使用LinkedHashSet返回元素集合。严格意义上也可以使用TreeSet实现相同的功能，但TreeSet耗时比LinkedHashSet更大，因此LinkedHashSet是更好的选择。</p>
+<h1 id="SortedSet"><a href="#SortedSet" class="headerlink" title="SortedSet"></a>SortedSet</h1><p>SortedSet是Set的一个子接口，它的含义跟它的名字一样——排序集合。它可以根据元素的自然顺序进行存储，也可以通过指定Comparator，来实现自己的排序逻辑。插入的元素必须实现Comparable接口（或者可以接受Comparator的compare方法），e1.compareTo(e2)或者comparator.compare(e1, e2)方法必须不能抛出ClassCastException异常。</p>
+<p>SortedSet的实现类有以下几点限制：</p>
+<ul>
+<li>一个无参构造方法，创建一个自然顺序的SortedSet</li>
+<li>一个传入Comparator的构造方法，根据Comparator的compare方法进行排序</li>
+<li>一个传入Collection的构造方法，根据自然顺序创建一个Collection的拷贝</li>
+<li>一个传入SortedSet的构造方法，创建一个跟传入对象相同的SortedSet</li>
+</ul>
+<p>SortedSet中定义了几个方法：</p>
+<ul>
+<li>comparator() 返回用于排序的Comparator</li>
+<li>first() 返回Set的第一个元素</li>
+<li>headSet(E toElement) 返回toElement之前所有元素组成的集合</li>
+<li>subSet(E fromElement, E toElement)返回一个half-open的子集合，范围为[fromElement, toElement)</li>
+<li>tailSet(E fromElement) 返回fromElement之后所有元素组成的集合</li>
+</ul>
+<h2 id="NavigableSet（1-6之后才有）"><a href="#NavigableSet（1-6之后才有）" class="headerlink" title="NavigableSet（1.6之后才有）"></a>NavigableSet（1.6之后才有）</h2><p>NavigableSet是SortedSet的一个子接口，也是TreeSet实现的接口，因此在这里简单介绍。NavigableSet顾名思义，是一个可以查找的Set，而且通常意义上很快（TreeSet通过红黑树实现，可以实现O(logN)的查找)。因此可以通过指定一个target，来返回想要查找的元素。</p>
+<p>NavigableSet提供了几个实用的方法：</p>
+<ul>
+<li>lower(E e)返回小于e的最大元素</li>
+<li>floor(E e) 返回小于或等于e的最大元素</li>
+<li>ceiling(E e)返回大于或等于e的最小元素</li>
+<li>higher(E e) 返回大于e的最小元素</li>
+<li>descendingSet() 和 descendingIterator()分别返回一个倒序的Set和Iterator</li>
+<li>pollFirst() 和 pollLast() 分别返回第一个、最后一个元素</li>
+</ul>
+<h1 id="TreeSet"><a href="#TreeSet" class="headerlink" title="TreeSet"></a>TreeSet</h1><p>TreeSet实现了NavigableSet，它是基于TreeMap存储的，由于TreeMap实现了红黑树，因此TreeSet也提供了O(logN)的插入、删除、查找操作。</p>
+<p>TreeSet的方法是NavigableSet和SortedSet的方法并集，在此不再进行罗列。源码中各个方法都是使用TreeMap的相应方法实现，在此也不过多描述，在TreeMap中进行详细的分析。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>分析到这里，发现Set家族的儿子都是从别人家偷的（HashSet使用了HashMap，TreeSet使用了TreeMap），真是精致的拿来主义者啊。不过这在代码的实现中，确实很高的技巧，完美的实现了DRY（Don’t repeat yourself）原则。Set家族的分析相对比较简单，因为大多都是Map家族的成员帮助它们完成了功能，因此，在下一步Map的分析就显得任重道远了。Set家族使用的场景虽然不多，但经过一番分析之后，也是挖掘了不少潜在价值，合理利用HashSet和TreeSet，可以减少很多代码的工作量。</p>
+]]></content>
+      
+        <categories>
+            
+            <category> Java </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> Java </tag>
+            
+            <tag> Collection </tag>
+            
+            <tag> Set </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[List家族简介]]></title>
       <url>/2017/11/15/javaList_info/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>List是Collection framework中重要的一员，在平时的编程中，我也会经常用到，它可以简单的理解成一个变长的数组，数组中的每个元素的类型必须一致。在数据结构的概念里面，链表是可以动态添加删除的，由节点与指针组成的一组数据集合，包括了单向链表、双向链表、循环链表、带头节点的链表、十字链表等。在Java中，并没有实现那么多复杂的结构，它的实现类包括了ArrayList、LinkedList、Vector三大类，下面详细介绍各个实现类。</p>
@@ -750,6 +830,67 @@
     </entry>
     
     <entry>
+      <title><![CDATA[Zookeeper是动物管理员吗]]></title>
+      <url>/2017/09/29/zookeeper1/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。</p>
+<a id="more"></a>
+<h1 id="Zookeeper到底是不是动物管理员？"><a href="#Zookeeper到底是不是动物管理员？" class="headerlink" title="Zookeeper到底是不是动物管理员？"></a>Zookeeper到底是不是动物管理员？</h1><p>这个问题的答案可以从Zookeeper的的官网标志图初探端倪。</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
+<p>由上图，Zookeeper是一个穿着工装，拿着铁锹的工人啊，这不符合管理员的形象吧，管理员不应该是西装革履的吗？好吧，有些牵强，那我们来看看keeper这个词的翻译，使用百度在线翻译的结果如下：</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/36748004.jpg" alt=""></p>
+<p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
+<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
+<h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg" alt="zookeeper roles"></p>
+<ul>
+<li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
+</ul>
+<p>集群模型如下:</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg" alt="zookeeper service"></p>
+<p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
+<h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
+<h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
+<p><img src="http://www.wuzesheng.com/wp-content/uploads/2013/12/zookeeper-tree.jpg" alt="image"></p>
+<p>ZooKeeper数据模型的结构与Unix文件系统很类似，整体上可以看作是一棵树，每个节点称做一个ZNode。每个ZNode都可以通过其路径唯一标识，图中每个节点左侧即为其路径唯一标识。</p>
+<p>注：<br>这里的ZNode可以理解成既是Unix里的文件，又是Unix里的目录。因为每个ZNode不仅本身可以写数据（相当于Unix里的文件），还可以有下一级文件或目录（相当于Unix里的目录）。</p>
+<p>在ZooKeeper中，ZNode可以分为持久节点和临时节点两类。</p>
+<p><strong>持久节点</strong></p>
+<p>所谓持久节点是指一旦这个ZNode被创建了，除非主动进行ZNode的移除操作，否则这个ZNode将一直保存在ZooKeeper上。</p>
+<p><strong>临时节点</strong></p>
+<p>临时节点的生命周期跟客户端会话绑定，一旦客户端会话失效，那么这个客户端创建的所有临时节点都会被移除。</p>
+<h2 id="Watcher"><a href="#Watcher" class="headerlink" title="Watcher"></a>Watcher</h2><p>Watcher（事件监听器），是ZooKeeper中一个很重要的特性。ZooKeeper允许用户在指定节点上注册一些Watcher，并且在一些特定事件触发的时候，ZooKeeper服务端会将事件通知到感兴趣的客户端上去。该机制是ZooKeeper实现分布式协调服务的重要特性。</p>
+<h1 id="管理者-or-协调者"><a href="#管理者-or-协调者" class="headerlink" title="管理者 or 协调者"></a>管理者 or 协调者</h1><p>通过Zookeeper的数据节点（临时节点特性）和watcher的组合，可以满足诸如服务发布/订阅、命名服务、master选举、分布式锁等功能。而Zookeeper之所以是keeper而不是manager，正是因为它在Hadoop生态中的两大功能是选举和元数据存储，才使得它有了分布式协调者的称号。</p>
+<p>元数据指的是配置信息、服务注册列表等，这使得Zookeeper更像是一个分布式的注册表。当client需要使用Zookeeper时，如HBase Master需要选举一个主节点，那么他们就并发的去Zookeeper上创建一个临时节点（节点名称一样），Zookeeper的分布式锁可以保证只有一个client创建成功，最后创建成功的那个节点，就当选为主节点。</p>
+<p>Zookeeper在Hadoop中的应用是HDFS和YARN的HA，在HBase中的应用有选举与主备切换、系统容错（RegionServer挂掉后，HMaster获知）、Region状态信息的管理。下面我们来看一下Zookeeper是如何让HMaster获知RegionServer挂掉的信息的。</p>
+<p>当HBase启动时，每个RegionServer都会到ZooKeeper的/hbase/rs节点下创建一个信息节点（临时节点，下文中，我们称该节点为”rs状态节点”），例如/hbase/rs/[Hostname]，同时，HMaster会对这个节点注册监听。当某个 RegionServer 挂掉的时候，ZooKeeper会因为在一段时间内无法接受其心跳（即 Session 失效），而删除掉该 RegionServer 服务器对应的 rs 状态节点。与此同时，HMaster 则会接收到 ZooKeeper 的 NodeDelete 通知，从而感知到某个节点断开，并立即开始容错工作。也就是说，Zookeeper是通过心跳机制来维护临时节点信息的，如果心跳发生了timeout，则Zookeeper删除该临时节点，然后通知注册过该临时节点监听的HMaster，所以Zookeeper默认临时节点删除后，该RegionServer处于无法工作状态，至于是网络延时原因还是该RegionServer确实挂掉了，Zookeeper不管。</p>
+<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>Zookeeper在Hadoop生态中十分重要，但它并没有上升到管理员的高度，Hadoop中使用Zookeeper服务的组件都有自己的master（NameNode、ResourManager、HMaster），各组件视自己的需求，交付给Zookeeper不同程度的权力。NameNode在实现HA的时候，需要用到Zookeeper的选举和watcher功能，因此交付给Zookeeper两个NameNode，让它来决定谁为Active；YARN的HA也是如此。HMaster交给Zookeeper的权力比较大，HMaster选举与主备切换、系统容错、RootRegion管理、Region状态管理和分布式SplitWAL任务管理等都交给了Zookeeper，让Zookeeper来管理HMaster的主备以及RegionServer信息等。Zookeeper相当于是古代的丞相，皇帝（NameNode、HMaster）给它多少权力，它就执行多大的功能。或许有一天，Zookeeper会成为Hadoop生态的“管仲”、“商鞅”，而那一天会不会实现，就要看Hadoop生态的发展了。。。</p>
+<h1 id="参考博客"><a href="#参考博客" class="headerlink" title="参考博客"></a>参考博客</h1><ul>
+<li><a href="http://www.wangjialong.cc/2017/09/27/etcd&amp;zookeeper/">Zookeeper与etcd的对比</a></li>
+<li><a href="http://linbingdong.com/2017/01/10/ZooKeeper原理及其在Hadoop和HBase中的应用/" target="_blank" rel="external">ZooKeeper原理及其在Hadoop和HBase中的应用</a></li>
+<li><a href="http://cailin.iteye.com/blog/2014486" target="_blank" rel="external">Zookeeper原理</a></li>
+</ul>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> zookeeper </tag>
+            
+            <tag> HBase </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[LeetCode 55 Jump Game从回溯到动态规划]]></title>
       <url>/2017/09/29/leetcode55/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>动态规划是一个降低时间的很有效的方法，通常一个可以使用递归从上到下来解决的题目，必定可以转化为动态规划，从下往上计算，并通过设置一个数组存放子问题的解，来降低问题的求解步骤。LeetCode上的第55题可以使用回溯法和动态规划来解决，但回溯法会造成栈溢出，下面讲解我的解题思路。</p>
@@ -807,67 +948,6 @@
             <tag> Java </tag>
             
             <tag> LeetCode、动态规划 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
-      <title><![CDATA[Zookeeper是动物管理员吗]]></title>
-      <url>/2017/09/29/zookeeper1/</url>
-      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。</p>
-<a id="more"></a>
-<h1 id="Zookeeper到底是不是动物管理员？"><a href="#Zookeeper到底是不是动物管理员？" class="headerlink" title="Zookeeper到底是不是动物管理员？"></a>Zookeeper到底是不是动物管理员？</h1><p>这个问题的答案可以从Zookeeper的的官网标志图初探端倪。</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
-<p>由上图，Zookeeper是一个穿着工装，拿着铁锹的工人啊，这不符合管理员的形象吧，管理员不应该是西装革履的吗？好吧，有些牵强，那我们来看看keeper这个词的翻译，使用百度在线翻译的结果如下：</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/36748004.jpg" alt=""></p>
-<p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
-<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
-<h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg" alt="zookeeper roles"></p>
-<ul>
-<li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
-</ul>
-<p>集群模型如下:</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg" alt="zookeeper service"></p>
-<p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
-<h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
-<h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
-<p><img src="http://www.wuzesheng.com/wp-content/uploads/2013/12/zookeeper-tree.jpg" alt="image"></p>
-<p>ZooKeeper数据模型的结构与Unix文件系统很类似，整体上可以看作是一棵树，每个节点称做一个ZNode。每个ZNode都可以通过其路径唯一标识，图中每个节点左侧即为其路径唯一标识。</p>
-<p>注：<br>这里的ZNode可以理解成既是Unix里的文件，又是Unix里的目录。因为每个ZNode不仅本身可以写数据（相当于Unix里的文件），还可以有下一级文件或目录（相当于Unix里的目录）。</p>
-<p>在ZooKeeper中，ZNode可以分为持久节点和临时节点两类。</p>
-<p><strong>持久节点</strong></p>
-<p>所谓持久节点是指一旦这个ZNode被创建了，除非主动进行ZNode的移除操作，否则这个ZNode将一直保存在ZooKeeper上。</p>
-<p><strong>临时节点</strong></p>
-<p>临时节点的生命周期跟客户端会话绑定，一旦客户端会话失效，那么这个客户端创建的所有临时节点都会被移除。</p>
-<h2 id="Watcher"><a href="#Watcher" class="headerlink" title="Watcher"></a>Watcher</h2><p>Watcher（事件监听器），是ZooKeeper中一个很重要的特性。ZooKeeper允许用户在指定节点上注册一些Watcher，并且在一些特定事件触发的时候，ZooKeeper服务端会将事件通知到感兴趣的客户端上去。该机制是ZooKeeper实现分布式协调服务的重要特性。</p>
-<h1 id="管理者-or-协调者"><a href="#管理者-or-协调者" class="headerlink" title="管理者 or 协调者"></a>管理者 or 协调者</h1><p>通过Zookeeper的数据节点（临时节点特性）和watcher的组合，可以满足诸如服务发布/订阅、命名服务、master选举、分布式锁等功能。而Zookeeper之所以是keeper而不是manager，正是因为它在Hadoop生态中的两大功能是选举和元数据存储，才使得它有了分布式协调者的称号。</p>
-<p>元数据指的是配置信息、服务注册列表等，这使得Zookeeper更像是一个分布式的注册表。当client需要使用Zookeeper时，如HBase Master需要选举一个主节点，那么他们就并发的去Zookeeper上创建一个临时节点（节点名称一样），Zookeeper的分布式锁可以保证只有一个client创建成功，最后创建成功的那个节点，就当选为主节点。</p>
-<p>Zookeeper在Hadoop中的应用是HDFS和YARN的HA，在HBase中的应用有选举与主备切换、系统容错（RegionServer挂掉后，HMaster获知）、Region状态信息的管理。下面我们来看一下Zookeeper是如何让HMaster获知RegionServer挂掉的信息的。</p>
-<p>当HBase启动时，每个RegionServer都会到ZooKeeper的/hbase/rs节点下创建一个信息节点（临时节点，下文中，我们称该节点为”rs状态节点”），例如/hbase/rs/[Hostname]，同时，HMaster会对这个节点注册监听。当某个 RegionServer 挂掉的时候，ZooKeeper会因为在一段时间内无法接受其心跳（即 Session 失效），而删除掉该 RegionServer 服务器对应的 rs 状态节点。与此同时，HMaster 则会接收到 ZooKeeper 的 NodeDelete 通知，从而感知到某个节点断开，并立即开始容错工作。也就是说，Zookeeper是通过心跳机制来维护临时节点信息的，如果心跳发生了timeout，则Zookeeper删除该临时节点，然后通知注册过该临时节点监听的HMaster，所以Zookeeper默认临时节点删除后，该RegionServer处于无法工作状态，至于是网络延时原因还是该RegionServer确实挂掉了，Zookeeper不管。</p>
-<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>Zookeeper在Hadoop生态中十分重要，但它并没有上升到管理员的高度，Hadoop中使用Zookeeper服务的组件都有自己的master（NameNode、ResourManager、HMaster），各组件视自己的需求，交付给Zookeeper不同程度的权力。NameNode在实现HA的时候，需要用到Zookeeper的选举和watcher功能，因此交付给Zookeeper两个NameNode，让它来决定谁为Active；YARN的HA也是如此。HMaster交给Zookeeper的权力比较大，HMaster选举与主备切换、系统容错、RootRegion管理、Region状态管理和分布式SplitWAL任务管理等都交给了Zookeeper，让Zookeeper来管理HMaster的主备以及RegionServer信息等。Zookeeper相当于是古代的丞相，皇帝（NameNode、HMaster）给它多少权力，它就执行多大的功能。或许有一天，Zookeeper会成为Hadoop生态的“管仲”、“商鞅”，而那一天会不会实现，就要看Hadoop生态的发展了。。。</p>
-<h1 id="参考博客"><a href="#参考博客" class="headerlink" title="参考博客"></a>参考博客</h1><ul>
-<li><a href="http://www.wangjialong.cc/2017/09/27/etcd&amp;zookeeper/">Zookeeper与etcd的对比</a></li>
-<li><a href="http://linbingdong.com/2017/01/10/ZooKeeper原理及其在Hadoop和HBase中的应用/" target="_blank" rel="external">ZooKeeper原理及其在Hadoop和HBase中的应用</a></li>
-<li><a href="http://cailin.iteye.com/blog/2014486" target="_blank" rel="external">Zookeeper原理</a></li>
-</ul>
-]]></content>
-      
-        <categories>
-            
-            <category> hadoop </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> hadoop </tag>
-            
-            <tag> zookeeper </tag>
-            
-            <tag> HBase </tag>
             
         </tags>
         
@@ -1469,6 +1549,31 @@
     </entry>
     
     <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[使用httpd搭建内网yum源]]></title>
       <url>/2017/09/14/private_yum/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
@@ -1539,31 +1644,6 @@
             <tag> 运维 </tag>
             
             <tag> 内网yum源 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
-      <title><![CDATA[Green Blue Deployment]]></title>
-      <url>/2017/09/14/greenBlueDeploy/</url>
-      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 运维 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 运维 </tag>
-            
-            <tag> 部署 </tag>
             
         </tags>
         

@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Linux,Docker,cgroups," />
+  <meta name="keywords" content="Java,Collection,Set," />
 
 
 
@@ -81,20 +81,18 @@
 
 
 
-<meta name="description" content="背景资源隔离技术namespace通过系统调用构建了一个相对隔离的shell环境，在该环境下资源的使用不会影响宿主机，这已经有“容器”的雏形了。而如何将隔离出来的资源合理的使用，这就需要另一个强大的内核工具——cgroups。它不仅可以限制被namespace隔离的资源，还可以为资源设置权重、计算使用量、操控任务(进程或线程)启停等，Docker通过cgroups进行运行时资源的限制。">
-<meta name="keywords" content="Linux,Docker,cgroups">
+<meta name="description" content="背景Set家族是Collection Framework中重要的一个分支，它的含义就是数学意义上的set概念，也就是说它的元素满足互斥性，如果e1，e2都属于一个Set，则e1.equals(e2)一定返回false，否则，在添加的时候，后面加入的元素无法被添加进来。Set在存储互斥元素的时候有很好的作用，如果我们希望在一个集合中存储唯一元素，如key值，则可以选择Set的子类进行存储。">
+<meta name="keywords" content="Java,Collection,Set">
 <meta property="og:type" content="article">
-<meta property="og:title" content="cgroups资源限制">
-<meta property="og:url" content="http://www.wangjialong.cc/2017/11/07/cgroups_info/index.html">
+<meta property="og:title" content="Set家族简介">
+<meta property="og:url" content="http://www.wangjialong.cc/2017/11/19/java_set_info/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="背景资源隔离技术namespace通过系统调用构建了一个相对隔离的shell环境，在该环境下资源的使用不会影响宿主机，这已经有“容器”的雏形了。而如何将隔离出来的资源合理的使用，这就需要另一个强大的内核工具——cgroups。它不仅可以限制被namespace隔离的资源，还可以为资源设置权重、计算使用量、操控任务(进程或线程)启停等，Docker通过cgroups进行运行时资源的限制。">
+<meta property="og:description" content="背景Set家族是Collection Framework中重要的一个分支，它的含义就是数学意义上的set概念，也就是说它的元素满足互斥性，如果e1，e2都属于一个Set，则e1.equals(e2)一定返回false，否则，在添加的时候，后面加入的元素无法被添加进来。Set在存储互斥元素的时候有很好的作用，如果我们希望在一个集合中存储唯一元素，如key值，则可以选择Set的子类进行存储。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="http://ww1.sinaimg.cn/mw690/aa213e02jw1eup8axdxb5j21fp1hs465.jpg">
-<meta property="og:updated_time" content="2017-11-07T07:35:52.000Z">
+<meta property="og:updated_time" content="2017-11-19T13:37:47.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="cgroups资源限制">
-<meta name="twitter:description" content="背景资源隔离技术namespace通过系统调用构建了一个相对隔离的shell环境，在该环境下资源的使用不会影响宿主机，这已经有“容器”的雏形了。而如何将隔离出来的资源合理的使用，这就需要另一个强大的内核工具——cgroups。它不仅可以限制被namespace隔离的资源，还可以为资源设置权重、计算使用量、操控任务(进程或线程)启停等，Docker通过cgroups进行运行时资源的限制。">
-<meta name="twitter:image" content="http://ww1.sinaimg.cn/mw690/aa213e02jw1eup8axdxb5j21fp1hs465.jpg">
+<meta name="twitter:title" content="Set家族简介">
+<meta name="twitter:description" content="背景Set家族是Collection Framework中重要的一个分支，它的含义就是数学意义上的set概念，也就是说它的元素满足互斥性，如果e1，e2都属于一个Set，则e1.equals(e2)一定返回false，否则，在添加的时候，后面加入的元素无法被添加进来。Set在存储互斥元素的时候有很好的作用，如果我们希望在一个集合中存储唯一元素，如key值，则可以选择Set的子类进行存储。">
 
 
 
@@ -124,13 +122,13 @@
 
 
 
-  <link rel="canonical" href="http://www.wangjialong.cc/2017/11/07/cgroups_info/"/>
+  <link rel="canonical" href="http://www.wangjialong.cc/2017/11/19/java_set_info/"/>
 
 
 
 
 
-  <title>cgroups资源限制 | 记忆碎片</title>
+  <title>Set家族简介 | 记忆碎片</title>
   
 
 
@@ -266,7 +264,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/11/07/cgroups_info/">
+    <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/11/19/java_set_info/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zaixiandemiao">
@@ -283,7 +281,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">cgroups资源限制</h1>
+          <h1 class="post-title" itemprop="name headline">Set家族简介</h1>
         
 
         <div class="post-meta">
@@ -295,8 +293,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-07T00:00:00+08:00">
-                2017-11-07
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-19T00:00:00+08:00">
+                2017-11-19
               </time>
             
 
@@ -318,8 +316,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Linux/" itemprop="url" rel="index">
-                    <span itemprop="name">Linux</span>
+                  <a href="/categories/Java/" itemprop="url" rel="index">
+                    <span itemprop="name">Java</span>
                   </a>
                 </span>
 
@@ -360,64 +358,62 @@
       
 
       
-        <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>资源隔离技术namespace通过系统调用构建了一个相对隔离的shell环境，在该环境下资源的使用不会影响宿主机，这已经有“容器”的雏形了。而如何将隔离出来的资源合理的使用，这就需要另一个强大的内核工具——cgroups。它不仅可以限制被namespace隔离的资源，还可以为资源设置权重、计算使用量、操控任务(进程或线程)启停等，Docker通过cgroups进行运行时资源的限制。</p>
+        <h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>Set家族是Collection Framework中重要的一个分支，它的含义就是数学意义上的set概念，也就是说它的元素满足互斥性，如果e1，e2都属于一个Set，则e1.equals(e2)一定返回false，否则，在添加的时候，后面加入的元素无法被添加进来。Set在存储互斥元素的时候有很好的作用，如果我们希望在一个集合中存储唯一元素，如key值，则可以选择Set的子类进行存储。</p>
 <a id="more"></a>
-<h1 id="cgroups简介"><a href="#cgroups简介" class="headerlink" title="cgroups简介"></a>cgroups简介</h1><p>cgroups最初名为process container，但由于container的多重含义，最后改名为control groups，顾名思义就是把任务放到一个组里，统一进行控制。因此，cgroups控制对象是任务组，一旦一个人物加入了一个组中，就会受到想关联的cgroups的资源限制，这里的资源指的是物理资源(cpu、Memory)。</p>
-<p>cgroups的4个特征:</p>
+<h1 id="Set简述"><a href="#Set简述" class="headerlink" title="Set简述"></a>Set简述</h1><p>Set不能存储相等的两个元素，那么就有一个问题，如果元素存入后改变了怎么办？通常的，一个元素的值得改变如果影响到了equals方法的返回值，Set并没有规定必须抛出异常，但在添加的时候，尽量不要添加会改变equals返回值的元素。</p>
+<p>Set中的方法与父接口中方法签名一致，但我在阅读源码的时候，发现Set还是重写了父接口的方法，这在语法上并不是必要的，在此我就暂且“以小人之心度一下源码大大之意“吧。</p>
 <ul>
-<li>cgroups以一个伪文件系统的方式实现，用户态的程序可以通过文件操作实现cgroups的组织管理</li>
-<li>cgroups组织管理的单元可以细到线程级别，用户可以创建和销毁cgroup，实现资源再分配和管理</li>
-<li>所有资源管理都以子系统的方式实现，接口统一</li>
-<li>子任务创建之初与父任务处于同一cgroup</li>
+<li>Set中的方法虽然签名与Collection相同，但具体含义不一样，如add方法，Collection是随意添加一个元素，而Set是添加一个之前在集合中不存在的元素</li>
+<li>为了写方法的doc注释，Collection中add方法和Set中add方法的注释不同</li>
 </ul>
-<h1 id="cgroups的核心功能和术语"><a href="#cgroups的核心功能和术语" class="headerlink" title="cgroups的核心功能和术语"></a>cgroups的核心功能和术语</h1><p>cgroups为不同用户层面的资源管理提供了一个统一化的接口，实现了资源的虚拟化，主要提供了四大功能：</p>
+<p>Set家族中有几个重要的成员，HashSet、SortedSet、TreeSet，下面简单介绍一下各自的含义</p>
 <ul>
-<li><strong>资源限制</strong>：cgroups可以对任务组使用的资源总额进行限制，如内存上限</li>
-<li><strong>优先级</strong>：通过分配CPU时间片数量及磁盘IO带宽大小，变相控制任务优先级</li>
-<li><strong>资源统计</strong>：统计资源使用量，如CPU使用时长，适用于计费</li>
-<li><strong>任务控制</strong>：cgroups可以对任务执行挂起、恢复等操作。</li>
+<li>HashSet：Set接口的实现类，内部存储结构为Hash表，实际上是由HashMap实现的HashSet</li>
+<li>SortedSet：Set接口的子接口，代表了一类排序的Set，其元素排列顺序为自然排序或者通过具体的comparator比较</li>
+<li>TreeSet：SortedSet的一个实现类，内部存储结构为红黑树，实际是由TreeMap实现的</li>
 </ul>
-<p>cgroups的几个术语</p>
+<h1 id="HashSet"><a href="#HashSet" class="headerlink" title="HashSet"></a>HashSet</h1><p>HashSet是一个Hash表实现的Set结构，其内部具体存储元素的是HashMap对象(<em>HashMap是Map家族的重要成员，将在Map中进行分析</em>)，其具体代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">private</span> <span class="keyword">transient</span> HashMap&lt;E,Object&gt; map;</div><div class="line"><span class="comment">// Dummy value to associate with an Object in the backing Map</span></div><div class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> Object PRESENT = <span class="keyword">new</span> Object();</div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">add</span><span class="params">(E e)</span> </span>&#123;</div><div class="line">    <span class="keyword">return</span> map.put(e, PRESENT)==<span class="keyword">null</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>由上面代码可以看出，HashSet中的元素实际上被存储为HashMap的key值，其唯一性由HashMap来保证，而HashMap的value值为一个静态常量PRESENT，它是一个Object对象。该对象用于判断map.remove时的返回值是否与其相同，来确保remove方法正确的删除了指定元素。</p>
+<p>HashSet中有两个比较重要的概念是initialCapacity和loadFactor，它们也是HashMap中的重要概念，在此只做简单的描述，详细的在Map中进行分析。</p>
 <ul>
-<li><strong>task(任务)</strong>:表示系统的一个进程或线程</li>
-<li><strong>cgroup(控制组)</strong>:cgroups资源控制的最小单位，表示按某种资源控制标准划分的任务组，包含一个或多个子系统。一个任务可以加入某个cgroup，也可以从某个cgroup迁移到另一个cgroup</li>
-<li><strong>subsystem(子系统)</strong>：资源调度器，如CPU子系统、内存子系统</li>
-<li><strong>hierarchy(层级)</strong>：由一系列cgroup以树状结构排列而成，每个层级绑定子系统进行资源控制。层级中cgroup节点可以有0或多个子节点，子节点继承父节点的子系统。整个操作系统有多个层级。</li>
+<li><code>initialCapacity</code>是bucket的默认大小，bucket也就是Hash表中一个key值对应的存储容量，是为了解决key冲突的，一个理想的Hash表应当是每个key对应一个值，这样可以在O(1)的时间内读取到一个值，但这需要Hash算法能把key值散列的完全没有重复才可以达到，而这在现实中是不可能的，因此bucket的存在就很关键，由此可见HashMap是通过开链法解决冲突的</li>
+<li><code>loadFactor</code>是bucket的默认填充因子，是一个0~1间的小数，代表了一个bucket最多可以填充多少百分比</li>
 </ul>
-<h1 id="cgroups的组织结构和基本规则"><a href="#cgroups的组织结构和基本规则" class="headerlink" title="cgroups的组织结构和基本规则"></a>cgroups的组织结构和基本规则</h1><p>前面说到cgroup是一个树状结构，但系统中多个cgroup构成的并非一个单根结构，而是可以存在多个，最终构成了一个cgroup森林。这样做的目的是，如果只有一个层级，则所有的任务都将被迫绑定其上的所有子系统，这会给某些人物带来不必要的限制。在Docker中，每个子系统独自构成一个层级，这样做非常易于管理。组织结构图如下：</p>
-<p><img src="http://ww1.sinaimg.cn/mw690/aa213e02jw1eup8axdxb5j21fp1hs465.jpg" alt="image"></p>
-<p>上面这个图从整体结构上描述了进程与 cgroups 之间的关系。最下面的P代表一个进程。每一个进程的描述符中有一个指针指向了一个辅助数据结构css_set（cgroups subsystem set）。 指向某一个css_set的进程会被加入到当前css_set的进程链表中。一个进程只能隶属于一个css_set，一个css_set可以包含多个进程，隶属于同一css_set的进程受到同一个css_set所关联的资源限制。</p>
-<p>上图中的”M×N Linkage”说明的是css_set通过辅助数据结构可以与 cgroups 节点进行多对多的关联。但是 cgroups 的实现不允许css_set同时关联同一个cgroups层级结构下多个节点。 这是因为 cgroups 对同一种资源不允许有多个限制配置。</p>
-<p>一个css_set关联多个 cgroups 层级结构的节点时，表明需要对当前css_set下的进程进行多种资源的控制。而一个 cgroups 节点关联多个css_set时，表明多个css_set下的进程列表受到同一份资源的相同限制。</p>
-<p>cgroups、任务、子系统、层级四者间的关系及其基本规则如下：</p>
+<p>HashSet是线程不安全的，如果需要获取一个同步Set，可以使用下面的代码</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">Set s = Collections.synchronizedSet(<span class="keyword">new</span> HashSet(...));</div></pre></td></tr></table></figure>
+<p>HashSet的iterator也是fail-fast的，如果在iterator遍历时，使用了除iterator的remove方法之外的方法改变了HashSet，则会抛出ConcurrentModificationException，这部分的实现是与</p>
+<h2 id="LinkedHashSet"><a href="#LinkedHashSet" class="headerlink" title="LinkedHashSet"></a>LinkedHashSet</h2><p>LinkedHashSet是HashSet的子类，是从1.4版本开始加入Set家族的(<em>HashSet从1.2就存在了</em>)，它主要解决的问题是HashSet在返回iterator的时候，顺序不统一的问题，因此LinkedHashSet使用了链表的方式，确保了元素的遍历顺序，该顺序与元素插入顺序一致。LinkedHashSet内部使用了LinkedHashMap存储元素值，它的iterator也是调用了LinkedHashMap的iterator方法。</p>
+<p>LinkedHashSet的典型使用场景是客户端展示数据，因为相同的集合，客户端希望展示的数组顺序是一样的，此时可以选择使用LinkedHashSet返回元素集合。严格意义上也可以使用TreeSet实现相同的功能，但TreeSet耗时比LinkedHashSet更大，因此LinkedHashSet是更好的选择。</p>
+<h1 id="SortedSet"><a href="#SortedSet" class="headerlink" title="SortedSet"></a>SortedSet</h1><p>SortedSet是Set的一个子接口，它的含义跟它的名字一样——排序集合。它可以根据元素的自然顺序进行存储，也可以通过指定Comparator，来实现自己的排序逻辑。插入的元素必须实现Comparable接口（或者可以接受Comparator的compare方法），e1.compareTo(e2)或者comparator.compare(e1, e2)方法必须不能抛出ClassCastException异常。</p>
+<p>SortedSet的实现类有以下几点限制：</p>
 <ul>
-<li>同一个层级可以附加一个或多个子系统</li>
-<li>一个已经附加在某个层级上的子系统不能附加到其他含有别的子系统的层级上。</li>
-<li>一个任务不能存在于同一个层级的不同cgroup中，但可以存在不同层级的多个cgroup中。</li>
-<li>刚fork/clone出的子任务在初始状态与其父任务处于同一个cgroup，但子任务允许被移动到不同的cgroup中。</li>
+<li>一个无参构造方法，创建一个自然顺序的SortedSet</li>
+<li>一个传入Comparator的构造方法，根据Comparator的compare方法进行排序</li>
+<li>一个传入Collection的构造方法，根据自然顺序创建一个Collection的拷贝</li>
+<li>一个传入SortedSet的构造方法，创建一个跟传入对象相同的SortedSet</li>
 </ul>
-<h1 id="子系统简介"><a href="#子系统简介" class="headerlink" title="子系统简介"></a>子系统简介</h1><p>子系统就是cgroups的资源控制系统，每种子系统独立地控制一种资源，目前Docker使用如下9种子系统：</p>
+<p>SortedSet中定义了几个方法：</p>
 <ul>
-<li>blkio:块设备输入/输出限制，如物理驱动设备(包括磁盘、固态、USB等)。Linux中分为块设备和字符设备两种，块设备以块存储数据，可以进行数据的寻址；字符设备提供连续的数据流，按字节/字符读取，如键盘、串口等。</li>
-<li>cpu: 使用调度程序控制任务对cpu的使用</li>
-<li>cpuacct：自动生成cgroup中任务对CPU资源使用情况的报告</li>
-<li>cpuset: 可以为cgroup中任务数分配独立的cpu(针对多处理器)</li>
-<li>devices: 可以开启或关闭对设备的访问</li>
-<li>freezer: 挂起或恢复cgroup中的任务</li>
-<li>memory: 可以设定cgroup中任务对内存使用量的限定，并自动生成内存使用情况报告</li>
-<li>perf_event: 对cgroup中的任务可以进行统一的性能测试</li>
-<li>net_cls: 使用等级识别符标记网络数据包，从而允许Linux流量控制程序识别从具体cgroup中生成的数据包</li>
+<li>comparator() 返回用于排序的Comparator</li>
+<li>first() 返回Set的第一个元素</li>
+<li>headSet(E toElement) 返回toElement之前所有元素组成的集合</li>
+<li>subSet(E fromElement, E toElement)返回一个half-open的子集合，范围为[fromElement, toElement)</li>
+<li>tailSet(E fromElement) 返回fromElement之后所有元素组成的集合</li>
 </ul>
-<h1 id="cgroups实现方式"><a href="#cgroups实现方式" class="headerlink" title="cgroups实现方式"></a>cgroups实现方式</h1><p>cgroups的实质是给任务挂上钩子，当任务运行的工程中涉及某种资源时，就会触发钩子上所附带的子系统进行检测，根据资源类别的不同，使用相应的技术进行资源限制和优先级分配。</p>
-<p>cgroup与任务是多对多的关系，它们不直接关联，而是通过一个中间结构把双向的关联信息记录起来，类似于数据库中的中间表。任务结构体task_struct中包含了一个指针，可以查询相应的cgroup情况，同时可以查询子系统的状态，子系统状态中也包含了找到任务的指针。</p>
-<p>一个cgroup创建完成，不管绑定了何种子系统，其目录下都会生成以下几个文件，用来描述cgroup相应信息。</p>
+<h2 id="NavigableSet（1-6之后才有）"><a href="#NavigableSet（1-6之后才有）" class="headerlink" title="NavigableSet（1.6之后才有）"></a>NavigableSet（1.6之后才有）</h2><p>NavigableSet是SortedSet的一个子接口，也是TreeSet实现的接口，因此在这里简单介绍。NavigableSet顾名思义，是一个可以查找的Set，而且通常意义上很快（TreeSet通过红黑树实现，可以实现O(logN)的查找)。因此可以通过指定一个target，来返回想要查找的元素。</p>
+<p>NavigableSet提供了几个实用的方法：</p>
 <ul>
-<li>tasks： 这个文件罗列所有在该cgroup中任务的TID，即所有进程或线程的ID，并不保证有序。</li>
-<li>cgroup.procs: 罗列所有在该cgroup中的TGID(线程组ID)，即线程组中的一个进程的PID。不保证有序和无重复，写一个TGID到这个文件就代表把与其相关的线程加到这个cgroup中。</li>
-<li>notify_on_release: 填0或1，表示cgroup中最后一个任务退出时通知运行release_agent，默认不运行(0)</li>
-<li>release_agent：指定release_agent执行脚本的文件路径，用于自动化卸载无用的cgroup</li>
+<li>lower(E e)返回小于e的最大元素</li>
+<li>floor(E e) 返回小于或等于e的最大元素</li>
+<li>ceiling(E e)返回大于或等于e的最小元素</li>
+<li>higher(E e) 返回大于e的最小元素</li>
+<li>descendingSet() 和 descendingIterator()分别返回一个倒序的Set和Iterator</li>
+<li>pollFirst() 和 pollLast() 分别返回第一个、最后一个元素</li>
 </ul>
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>cgroups通过与cgroup关联的子系统，形成了对进程组的资源限制。它一个伪文件系统的方式实现，并可以通过文件操作实现组织管理，最终提供了资源限制、优先级分配、资源统计、任务控制四大功能。</p>
+<h1 id="TreeSet"><a href="#TreeSet" class="headerlink" title="TreeSet"></a>TreeSet</h1><p>TreeSet实现了NavigableSet，它是基于TreeMap存储的，由于TreeMap实现了红黑树，因此TreeSet也提供了O(logN)的插入、删除、查找操作。</p>
+<p>TreeSet的方法是NavigableSet和SortedSet的方法并集，在此不再进行罗列。源码中各个方法都是使用TreeMap的相应方法实现，在此也不过多描述，在TreeMap中进行详细的分析。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>分析到这里，发现Set家族的儿子都是从别人家偷的（HashSet使用了HashMap，TreeSet使用了TreeMap），真是精致的拿来主义者啊。不过这在代码的实现中，确实很高的技巧，完美的实现了DRY（Don’t repeat yourself）原则。Set家族的分析相对比较简单，因为大多都是Map家族的成员帮助它们完成了功能，因此，在下一步Map的分析就显得任重道远了。Set家族使用的场景虽然不多，但经过一番分析之后，也是挖掘了不少潜在价值，合理利用HashSet和TreeSet，可以减少很多代码的工作量。</p>
 
       
     </div>
@@ -435,11 +431,11 @@
       
         <div class="post-tags">
           
-            <a href="/tags/Linux/" rel="tag"># Linux</a>
+            <a href="/tags/Java/" rel="tag"># Java</a>
           
-            <a href="/tags/Docker/" rel="tag"># Docker</a>
+            <a href="/tags/Collection/" rel="tag"># Collection</a>
           
-            <a href="/tags/cgroups/" rel="tag"># cgroups</a>
+            <a href="/tags/Set/" rel="tag"># Set</a>
           
         </div>
       
@@ -452,8 +448,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/11/04/java_collection/" rel="next" title="Collection简介">
-                <i class="fa fa-chevron-left"></i> Collection简介
+              <a href="/2017/11/15/javaList_info/" rel="next" title="List家族简介">
+                <i class="fa fa-chevron-left"></i> List家族简介
               </a>
             
           </div>
@@ -461,10 +457,6 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/11/15/javaList_info/" rel="prev" title="List家族简介">
-                List家族简介 <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -623,7 +615,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#背景"><span class="nav-number">1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#cgroups简介"><span class="nav-number">2.</span> <span class="nav-text">cgroups简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#cgroups的核心功能和术语"><span class="nav-number">3.</span> <span class="nav-text">cgroups的核心功能和术语</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#cgroups的组织结构和基本规则"><span class="nav-number">4.</span> <span class="nav-text">cgroups的组织结构和基本规则</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#子系统简介"><span class="nav-number">5.</span> <span class="nav-text">子系统简介</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#cgroups实现方式"><span class="nav-number">6.</span> <span class="nav-text">cgroups实现方式</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#总结"><span class="nav-number">7.</span> <span class="nav-text">总结</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#背景"><span class="nav-number">1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Set简述"><span class="nav-number">2.</span> <span class="nav-text">Set简述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#HashSet"><span class="nav-number">3.</span> <span class="nav-text">HashSet</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#LinkedHashSet"><span class="nav-number">3.1.</span> <span class="nav-text">LinkedHashSet</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#SortedSet"><span class="nav-number">4.</span> <span class="nav-text">SortedSet</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#NavigableSet（1-6之后才有）"><span class="nav-number">4.1.</span> <span class="nav-text">NavigableSet（1.6之后才有）</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#TreeSet"><span class="nav-number">5.</span> <span class="nav-text">TreeSet</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#总结"><span class="nav-number">6.</span> <span class="nav-text">总结</span></a></li></ol></div>
             
 
           </div>
