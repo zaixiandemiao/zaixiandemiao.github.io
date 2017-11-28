@@ -89,7 +89,7 @@
 <meta property="og:site_name" content="记忆碎片">
 <meta property="og:description" content="前言Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、TreeMap。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2017-11-28T14:28:02.000Z">
+<meta property="og:updated_time" content="2017-11-28T14:29:57.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Map简介">
 <meta name="twitter:description" content="前言Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、TreeMap。">
@@ -358,7 +358,7 @@
       
 
       
-        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、<br>TreeMap。</p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、TreeMap。</p>
 <a id="more"></a>
 <h1 id="Map介绍"><a href="#Map介绍" class="headerlink" title="Map介绍"></a>Map介绍</h1><p>Map是一个接口，它表示了一组可以存放K/V键值对的集合。key值必须是唯一的，不能重复，对应的value值同一时刻只能指向一个对象。Map的定义是使用了泛型的，其定义语法为 <code>public interface Map&lt;K,V&gt;</code>， K为键的类型，V为value的类型。可以是通用数据类型也可以是类。</p>
 <p>Map提供了三种视图可以用于遍历，key值得集合，value值得集合，k/v对的集合。有一些子类的遍历顺序是一定的，如TreeMap，而另一些是不确定的，如HashMap。Map主要提供了以下的方法：</p>

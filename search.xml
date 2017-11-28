@@ -5,7 +5,7 @@
     <entry>
       <title><![CDATA[Map简介]]></title>
       <url>/2017/11/19/map_info/</url>
-      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、<br>TreeMap。</p>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、TreeMap。</p>
 <a id="more"></a>
 <h1 id="Map介绍"><a href="#Map介绍" class="headerlink" title="Map介绍"></a>Map介绍</h1><p>Map是一个接口，它表示了一组可以存放K/V键值对的集合。key值必须是唯一的，不能重复，对应的value值同一时刻只能指向一个对象。Map的定义是使用了泛型的，其定义语法为 <code>public interface Map&lt;K,V&gt;</code>， K为键的类型，V为value的类型。可以是通用数据类型也可以是类。</p>
 <p>Map提供了三种视图可以用于遍历，key值得集合，value值得集合，k/v对的集合。有一些子类的遍历顺序是一定的，如TreeMap，而另一些是不确定的，如HashMap。Map主要提供了以下的方法：</p>
@@ -712,9 +712,9 @@
         
         <tags>
             
-            <tag> kubernetes </tag>
-            
             <tag> etcd </tag>
+            
+            <tag> kubernetes </tag>
             
         </tags>
         
@@ -1156,11 +1156,11 @@
         
         <tags>
             
-            <tag> etcd </tag>
-            
             <tag> hadoop </tag>
             
             <tag> zookeeper </tag>
+            
+            <tag> etcd </tag>
             
         </tags>
         
@@ -1604,6 +1604,31 @@
     </entry>
     
     <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[使用httpd搭建内网yum源]]></title>
       <url>/2017/09/14/private_yum/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
@@ -1674,31 +1699,6 @@
             <tag> 运维 </tag>
             
             <tag> 内网yum源 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
-      <title><![CDATA[Green Blue Deployment]]></title>
-      <url>/2017/09/14/greenBlueDeploy/</url>
-      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 运维 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 运维 </tag>
-            
-            <tag> 部署 </tag>
             
         </tags>
         
