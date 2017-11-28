@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="运维,部署," />
+  <meta name="keywords" content="Java,Collection,Map," />
 
 
 
@@ -81,20 +81,18 @@
 
 
 
-<meta name="description" content="自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，">
-<meta name="keywords" content="运维,部署">
+<meta name="description" content="前言Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、TreeMap。">
+<meta name="keywords" content="Java,Collection,Map">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Green Blue Deployment">
-<meta property="og:url" content="http://www.wangjialong.cc/2017/09/14/greenBlueDeploy/index.html">
+<meta property="og:title" content="Map简介">
+<meta property="og:url" content="http://www.wangjialong.cc/2017/11/19/map_info/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，">
+<meta property="og:description" content="前言Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、TreeMap。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg">
-<meta property="og:updated_time" content="2017-10-24T12:01:08.000Z">
+<meta property="og:updated_time" content="2017-11-28T14:28:02.000Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Green Blue Deployment">
-<meta name="twitter:description" content="自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，">
-<meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg">
+<meta name="twitter:title" content="Map简介">
+<meta name="twitter:description" content="前言Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、TreeMap。">
 
 
 
@@ -124,13 +122,13 @@
 
 
 
-  <link rel="canonical" href="http://www.wangjialong.cc/2017/09/14/greenBlueDeploy/"/>
+  <link rel="canonical" href="http://www.wangjialong.cc/2017/11/19/map_info/"/>
 
 
 
 
 
-  <title>Green Blue Deployment | 记忆碎片</title>
+  <title>Map简介 | 记忆碎片</title>
   
 
 
@@ -266,7 +264,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/09/14/greenBlueDeploy/">
+    <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/11/19/map_info/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zaixiandemiao">
@@ -283,7 +281,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">Green Blue Deployment</h1>
+          <h1 class="post-title" itemprop="name headline">Map简介</h1>
         
 
         <div class="post-meta">
@@ -295,8 +293,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-14T00:00:00+08:00">
-                2017-09-14
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-19T00:00:00+08:00">
+                2017-11-19
               </time>
             
 
@@ -318,8 +316,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/运维/" itemprop="url" rel="index">
-                    <span itemprop="name">运维</span>
+                  <a href="/categories/Java/" itemprop="url" rel="index">
+                    <span itemprop="name">Java</span>
                   </a>
                 </span>
 
@@ -360,9 +358,37 @@
       
 
       
-        <p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Collection家族的最后一个重要成员就是Map了，坦白来说，在实际开发中，用到的最多的怕就是List和Map了，而相对来说Set比他们用的都少一点。Map的K/V存储结构，特别适合在后端开发中存放一些用户请求参数，配置信息等。因此，准备详细分析一下Map家族，大致分为三个部分Map、HashMap、<br>TreeMap。</p>
+<a id="more"></a>
+<h1 id="Map介绍"><a href="#Map介绍" class="headerlink" title="Map介绍"></a>Map介绍</h1><p>Map是一个接口，它表示了一组可以存放K/V键值对的集合。key值必须是唯一的，不能重复，对应的value值同一时刻只能指向一个对象。Map的定义是使用了泛型的，其定义语法为 <code>public interface Map&lt;K,V&gt;</code>， K为键的类型，V为value的类型。可以是通用数据类型也可以是类。</p>
+<p>Map提供了三种视图可以用于遍历，key值得集合，value值得集合，k/v对的集合。有一些子类的遍历顺序是一定的，如TreeMap，而另一些是不确定的，如HashMap。Map主要提供了以下的方法：</p>
+<ul>
+<li><strong>查询类的</strong>：size返回当前大小、isEmpty返回是否为空，containsKey、containsValue分别返回是否包含该key或value，</li>
+<li><strong>操作类的</strong>：get(key)、put(key, value)、remove(key)、putAll(map)、clear()</li>
+<li><strong>视图类的</strong>：keySet()返回key值的一个set集合对象，values返回一个Collection对象，entrySet返回一个Set<map.entry<k, v="">&gt; 对象，Map.Entry是一个内部静态类</map.entry<k,></li>
+</ul>
+<p>根据视图类的三个方法，分别有三种遍历方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="number">1</span>/遍历k,v值</div><div class="line"><span class="keyword">for</span>(K key: map.keySet()) &#123;</div><div class="line">    V value = map.get(key);</div><div class="line">&#125;</div><div class="line"><span class="number">2</span>/只遍历v值</div><div class="line"><span class="keyword">for</span>(V value: map.values()) &#123;</div><div class="line"></div><div class="line">&#125;</div><div class="line"><span class="number">3</span>/遍历k,v值</div><div class="line"><span class="keyword">for</span>(Map.Entry&lt;K,V&gt; entry: map.entrySet()) &#123;</div><div class="line">    K key = entry.getKey();</div><div class="line">    V value = entry.getValue();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>JDK1.8之后，接口中的方法可以提供默认的结构体了，叫作接口的默认方法，该方法提供了默认操作，如果实现类没有重写这些方法，则将直接调用默认方法的逻辑，这赋予了接口部分父类的功能，免除了实现类重复的实现相同的方法逻辑。Map中的默认方法大多与1.8支持的lambda表达式有关，通过传入Function，提供了函数式编程的部分特性。</p>
+<p>默认方法中有一部分是无关Lambda表达式的，这部分方法的意义就是纯粹的提供了一个默认的操作逻辑。这些方法包含了</p>
+<ul>
+<li>putIfAbsent(K key, V value)，该方法判断key对应的是否为null，如果是，则赋值。</li>
+<li>remove(Object key, Object value)删除指定key/value对，这里使用了Object而没有采用泛型，具体原因没有分析出来。</li>
+<li>replace(K key, V oldValue, V newValue)将旧值替换为新值</li>
+<li>replace(K key, V value)将该key对应的value设为传入的value。</li>
+</ul>
+<p>默认方法中另一组方法是传入参数为Function或者BiFunction的，Function和BiFunction为依赖注入的对象，在默认方法调用其apply方法，对Map的元素进行相应的操作。依赖注入是spring中重要的一个思想，它通过注入一个接口，达到了控制反转的目的。在这里，默认方法都调用apply方法，但apply方法的具体实现逻辑在这里并没有指定，而是通过传入的Function或者BiFunction的实现类来决定的，也就是把具体控制权交给了其实现类。简单介绍一下两个接口。</p>
+<ul>
+<li>两者都可以用Lambda表达式传入</li>
+<li>Function的apply方法传入一个参数，BiFunction的apply方法传入两个参数。</li>
+<li>两者的apply方法都会返回一个值</li>
+</ul>
+<p>computeIfAbsent传入一个key值和Function，在调用时可以使用 <code>map.computeIfAbsent(1, k -&gt; k+&quot;&quot;)</code>的格式，将key为1（不存在与Map中）对应的value设置为字符串“1”。</p>
+<p>compute、computeIfPresent、merge、replaceAll传入的都为BiFunction。</p>
+<p>compute的典型用法如<br><code>map.compute(key, (k, v) -&gt; (v == null) ? msg : v.concat(msg))</code> 将key对应的value设一个默认字符串或者将原有字符串和新字符串合并。merge的用法与compute类似。<code>map.merge(key, msg, String::concat)</code></p>
+<p>computeIfPresent对一个存在的key值进行对应的apply方法调用。replaceAll对所有的k/v对进行相应的操作。</p>
+<p>默认方法还有一个传入的是BiConsumer接口。该接口调用的是accept方法，传入两个参数，不返回值。该默认方法为forEach方法，可以方便的用于遍历map.如 <code>map.forEach((k, v) -&gt; System.out.println(k +&quot;-&gt;&quot;+ v));</code></p>
+<h1 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h1><p>Map是Collection框架中的大家族，其中有HashMap、HashTable、TreeMap都有分析的必要，因此决定单独几篇分析每个类。在这里，简单介绍了Map的功能和特性，重点介绍了1.8后支持的默认方法，给接口的使用增加了很多的便利性。灵活使用默认方法搭配Lambda表达式，可以写出来简洁且清晰的代码。</p>
 
       
     </div>
@@ -380,9 +406,11 @@
       
         <div class="post-tags">
           
-            <a href="/tags/运维/" rel="tag"># 运维</a>
+            <a href="/tags/Java/" rel="tag"># Java</a>
           
-            <a href="/tags/部署/" rel="tag"># 部署</a>
+            <a href="/tags/Collection/" rel="tag"># Collection</a>
+          
+            <a href="/tags/Map/" rel="tag"># Map</a>
           
         </div>
       
@@ -395,15 +423,15 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
+              <a href="/2017/11/19/java_set_info/" rel="next" title="Set家族简介">
+                <i class="fa fa-chevron-left"></i> Set家族简介
+              </a>
+            
           </div>
 
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/2017/09/14/private_yum/" rel="prev" title="使用httpd搭建内网yum源">
-                使用httpd搭建内网yum源 <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -455,8 +483,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -543,6 +580,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Map介绍"><span class="nav-number">2.</span> <span class="nav-text">Map介绍</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#小结"><span class="nav-number">3.</span> <span class="nav-text">小结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       

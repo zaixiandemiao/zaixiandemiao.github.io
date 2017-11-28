@@ -4,6 +4,30 @@
 
     
   <url>
+    <loc>http://www.wangjialong.cc/2017/11/19/map_info/</loc>
+    <lastmod>2017-11-28T14:28:02.000Z</lastmod>
+    <data>
+        <display>
+        <title>Map简介</title>
+        <pubTime>2017-11-18T16:00:00.000Z</pubTime>
+        
+        <tag>Java</tag>
+         
+        <tag>Collection</tag>
+         
+        <tag>Map</tag>
+         
+         
+           
+             
+              <breadCrumb title="Java" url="http://www.wangjialong.cc/categories/Java/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>http://www.wangjialong.cc/2017/11/19/java_set_info/</loc>
     <lastmod>2017-11-19T13:37:47.000Z</lastmod>
     <data>
@@ -175,9 +199,9 @@
         <title>Etcd集群安装</title>
         <pubTime>2017-10-30T16:00:00.000Z</pubTime>
         
-        <tag>etcd</tag>
-         
         <tag>kubernetes</tag>
+         
+        <tag>etcd</tag>
          
          
            
@@ -289,11 +313,11 @@
         <title>zookeeper与etcd的类比</title>
         <pubTime>2017-09-26T16:00:00.000Z</pubTime>
         
+        <tag>etcd</tag>
+         
         <tag>hadoop</tag>
          
         <tag>zookeeper</tag>
-         
-        <tag>etcd</tag>
          
          
            
