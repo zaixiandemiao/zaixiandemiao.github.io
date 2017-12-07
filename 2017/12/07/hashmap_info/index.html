@@ -89,7 +89,7 @@
 <meta property="og:site_name" content="记忆碎片">
 <meta property="og:description" content="前言HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2017-12-07T07:45:51.068Z">
+<meta property="og:updated_time" content="2017-12-07T07:48:11.110Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="HashMap源码解读">
 <meta name="twitter:description" content="前言HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。">
@@ -447,9 +447,7 @@
 <p>HashTable的遍历时从数组的末尾index递减的顺序进行遍历的，通过一个内部的Enumerator来实现，通过属性type判断要取的是key值还是value值或者Entry值，在此不做赘述。</p>
 <p>由上面所说，HashTable大多数的方法都为同步方法，已经不太适合多并发编程，因此推荐使用ConcurrentHashMap类满足并发需求，ConcurrentHashMap的读不加锁，因此适合频繁多线程读的场景。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>分析HashMap是我读Collection 家族的最多收获的一次，在过程中不仅复习了开链法解决Hash冲突，还学到了通过掩码实现类似于求余的操作，并搞懂了为什么capacity为什么必须是2的整数次幂，在后面有学习了一下红黑树的相关知识，虽然让我实现一个红黑树还是困难重重，但已经增加了很深对于红黑树的理解。而且在分析LinkedHashMap的时候，了解了LinkedHashMap巧妙复用HashMap的put方法的编程技巧，这一点也是让我受益匪浅。</p>
-<blockquote>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">&gt; <span class="keyword">if</span>(sad) &#123;</div><div class="line">&gt;    sad = <span class="keyword">false</span>;</div><div class="line">&gt;    beAwesome();</div><div class="line">&gt; &#125;</div><div class="line">&gt;</div></pre></td></tr></table></figure>
-</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">if</span>(sad) &#123;</div><div class="line">  sad = <span class="keyword">false</span>;</div><div class="line">  beAwesome();</div><div class="line">&#125;</div></pre></td></tr></table></figure>
 
       
     </div>
