@@ -4,6 +4,30 @@
 
     
   <url>
+    <loc>http://www.wangjialong.cc/2018/01/04/sentry_authorize/</loc>
+    <lastmod>2018-01-04T01:23:03.561Z</lastmod>
+    <data>
+        <display>
+        <title>Sentry源码之HiveServer2鉴权过程</title>
+        <pubTime>2018-01-03T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>sentry</tag>
+         
+        <tag>细粒度访问控制</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>http://www.wangjialong.cc/2017/12/19/TreeMap_info/</loc>
     <lastmod>2017-12-19T12:24:21.610Z</lastmod>
     <data>
@@ -247,9 +271,9 @@
         <title>Etcd集群安装</title>
         <pubTime>2017-10-30T16:00:00.000Z</pubTime>
         
-        <tag>kubernetes</tag>
-         
         <tag>etcd</tag>
+         
+        <tag>kubernetes</tag>
          
          
            
@@ -363,9 +387,9 @@
         
         <tag>hadoop</tag>
          
-        <tag>etcd</tag>
-         
         <tag>zookeeper</tag>
+         
+        <tag>etcd</tag>
          
          
            

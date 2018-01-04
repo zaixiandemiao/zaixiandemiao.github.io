@@ -3,6 +3,103 @@
   
     
     <entry>
+      <title><![CDATA[Sentry源码之HiveServer2鉴权过程]]></title>
+      <url>/2018/01/04/sentry_authorize/</url>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。</p>
+<a id="more"></a>
+<h1 id="Sentry架构简述"><a href="#Sentry架构简述" class="headerlink" title="Sentry架构简述"></a>Sentry架构简述</h1><p>Sentry的设计目标是作为一层独立的访问控制层来对Hadoop组件（目前支持HDFS，Hive，Impala，solr，kafka，sqoop）进行授权/鉴权操作，因此它的耦合度很低，以插件的形式工作于组件之上。可以把它看作Java web中的filter，当用户请求过来的时候，sentry截获了用户的信息，对用户的权限进行验证，如果成功，则让该请求通过；否则，抛出异常，阻断该请求。</p>
+<p>Sentry是一个分层的结构，如下图所示</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/18-1-3/37903285.jpg" alt=""></p>
+<ul>
+<li><strong>Binding层</strong> 负责将用户对Hadoop组件的访问请求截获，并解析出其中的用户信息，以便进行鉴权</li>
+<li><strong>Provider层</strong> 是一个较通用的权限策略验证层，在这里抽象了权限对象，并对用户所具备的权限对象进行验证</li>
+<li><strong>Policy Metadata Store</strong> 负责与策略的存储和读取，目前支持文件存储和关系型数据库存储方式。</li>
+</ul>
+<p>由上图结合源码分析，Sentry的大致工作流程为：</p>
+<ol>
+<li>Binding层拦截用户的访问，并将用户信息解析出来，暂存到一个subject对象中</li>
+<li>Policy Metadata Store层根据用户访问的资源对象（表名）和用户信息（subject）从底层存储（文件或关系型数据库）中读取两个权限对象列表：requireList（需要有的权限）和obtainList（用户当前的权限）</li>
+<li>Policy Engine根据读取到的两个权限对象列表，逐一进行权限的比对，缺少任何一个权限都要抛出异常，只有当完全满足时，将此访问请求通过</li>
+</ol>
+<h1 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h1><p>下面以HiveServer2为例，分析Sentry是如何进行鉴权工作的，以此为切入点，剖析Sentry的通用鉴权模型。上面提到，Sentry的鉴权过程中主要分为了Binding、Policy Engine和Policy MetadataStore三层的协作，下面逐一进行分析。</p>
+<h2 id="Binding"><a href="#Binding" class="headerlink" title="Binding"></a>Binding</h2><p>上面谈到Binding的主要工作是解析用户信息，那么Sentry是如何截获用户对Hadoop组件的请求的呢？拿HiveServer2为例，用户在连接的时候，会由HiveServer2创建一个session，该session中保存了用户的用户名等信息，该session在该用户的整个TCP连接中都会保留，因此如果可以获得该session，便可以获得用户名。</p>
+<p>HiveServer2中提供了一个方便的接口叫作HiveSessionHook，其中只有一个run方法，在session manager创建一个session的时候，会进行调用。这是一个Hive提供的hook机制，方便进行自定义的hook动作，Sentry使用了这个Hook，定义了一个HiveAuthzBindingSessionHookV2类实现了HiveSessionHook接口，重写了其中的run方法。代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">(HiveSessionHookContext sessionHookContext)</span> <span class="keyword">throws</span> HiveSQLException </span>&#123;</div><div class="line">  <span class="comment">// Add sentry hooks to the session configuration</span></div><div class="line">  HiveConf sessionConf = sessionHookContext.getSessionConf();</div><div class="line"></div><div class="line">  appendConfVar(sessionConf, ConfVars.SEMANTIC_ANALYZER_HOOK.varname, SEMANTIC_HOOK);</div><div class="line">  <span class="comment">// enable sentry authorization V2</span></div><div class="line">  sessionConf.setBoolean(HiveConf.ConfVars.HIVE_AUTHORIZATION_ENABLED.varname, <span class="keyword">true</span>);</div><div class="line">  sessionConf.setBoolean(HiveConf.ConfVars.HIVE_SERVER2_ENABLE_DOAS.varname, <span class="keyword">false</span>);</div><div class="line">  sessionConf.set(HiveConf.ConfVars.HIVE_AUTHENTICATOR_MANAGER.varname,</div><div class="line">      <span class="string">"org.apache.hadoop.hive.ql.security.SessionStateUserAuthenticator"</span>);</div><div class="line"></div><div class="line">  <span class="comment">// grant all privileges for table to its owner</span></div><div class="line">  sessionConf.setVar(ConfVars.HIVE_AUTHORIZATION_TABLE_OWNER_GRANTS, <span class="string">""</span>);</div><div class="line"></div><div class="line">  <span class="comment">// Enable compiler to capture transform URI referred in the query</span></div><div class="line">  sessionConf.setBoolVar(ConfVars.HIVE_CAPTURE_TRANSFORM_ENTITY, <span class="keyword">true</span>);</div><div class="line"></div><div class="line">  <span class="comment">// set security command list</span></div><div class="line">  HiveAuthzConf authzConf = HiveAuthzBindingHookBaseV2.loadAuthzConf(sessionConf);</div><div class="line">  String commandWhitelist =</div><div class="line">      authzConf.get(HiveAuthzConf.HIVE_SENTRY_SECURITY_COMMAND_WHITELIST,</div><div class="line">          HiveAuthzConf.HIVE_SENTRY_SECURITY_COMMAND_WHITELIST_DEFAULT);</div><div class="line">  sessionConf.setVar(ConfVars.HIVE_SECURITY_COMMAND_WHITELIST, commandWhitelist);</div><div class="line"></div><div class="line">  <span class="comment">// set additional configuration properties required for auth</span></div><div class="line">  sessionConf.setVar(ConfVars.SCRATCHDIRPERMISSION, SCRATCH_DIR_PERMISSIONS);</div><div class="line"></div><div class="line">  <span class="comment">// setup restrict list</span></div><div class="line">  sessionConf.addToRestrictList(ACCESS_RESTRICT_LIST);</div><div class="line"></div><div class="line">  <span class="comment">// set user name</span></div><div class="line">  sessionConf.set(HiveAuthzConf.HIVE_ACCESS_SUBJECT_NAME, sessionHookContext.getSessionUser());</div><div class="line">  sessionConf.set(HiveAuthzConf.HIVE_SENTRY_SUBJECT_NAME, sessionHookContext.getSessionUser());</div><div class="line"></div><div class="line">  <span class="comment">// Set MR ACLs to session user</span></div><div class="line">  updateJobACL(sessionConf, JobContext.JOB_ACL_VIEW_JOB, sessionHookContext.getSessionUser());</div><div class="line">  updateJobACL(sessionConf, JobContext.JOB_ACL_MODIFY_JOB, sessionHookContext.getSessionUser());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>英文注释已经比较详细，在此有几点需要注意的是：</p>
+<ul>
+<li>HiveConf是Configuration的一个子类，可以把它看成一个Map集合，存放了Hive当前session的一些配置信息，默认会将hive-site.xml中的配置载入，因此通过HiveConf就可以获得hive-site.xml中的配置项。</li>
+<li>semantic analyzer hook也被注入了进来，它也是一个hook，在SQL语句的语法分析阶段触发，可以在此完成一些鉴权的操作，但sentry的主要鉴权逻辑并不在此实现</li>
+<li><code>SCRATCH_DIR_PERMISSIONS</code>的值为700，是对目录的权限赋值，对应为111000000，也就是对该用户有r、w、x权限</li>
+<li><code>ACCESS_RESTRICT_LIST</code>是一个key的集合，该集合中的key值对应的value值不允许用户修改</li>
+<li>HiveAuthzConf也是Configuration的一个子类，可以把它看做sentry-site.xml中的配置信息</li>
+<li>设置subject name，这里为用户名，用于之后的用户鉴权，每个用户对应一定的权限。</li>
+</ul>
+<p>Binding层至此就分析完毕了，主要使用了HiveServer2中的session hook，将session的用户名读取并设置到一个key值中，以备之后的使用。</p>
+<h2 id="权限验证"><a href="#权限验证" class="headerlink" title="权限验证"></a>权限验证</h2><p>HiveServer2原生提供了访问控制逻辑，Sentry在此基础上进行了RBAC概念的强化，使得权限只能赋予给角色，角色赋予给用户/用户组，由此就有了权限——角色——用户组——用户的链式关系。当拿到用户名之后，通过数据库中读取其角色和相应的权限集合，便可以进行权限的验证了。Sentry中跟权限验证相关的类关系如下图所示：</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/18-1-3/96935367.jpg" alt=""></p>
+<blockquote>
+<p>类/接口的右上角表示其属于Hive还是Sentry，空心菱形代表的是实现的接口，实心箭头指向的为内部的一个引用对象。</p>
+</blockquote>
+<ul>
+<li><code>HiveAuthorizerFactory</code>和<code>HiveAuthorizer</code>都来自于Hive且都为接口，<code>HiveAuthorizerFactory</code>实现了一个抽象工厂模式，返回一个<code>HiveAuthorizer</code></li>
+<li><code>SentryAuthorizerFactory</code>和<code>SentryHiveAuthorizer</code>分别是Sentry的两个对应实现，到此HiveServer2的访问控制就交给了Sentry处理</li>
+<li><code>SentryHiveAuthorizer</code>内有两个引用接口，分别为<code>SentryHiveAccessController</code>和<code>SentryHiveAuthorizationValidator</code>,分别负责授权（grant/revoke)和鉴权（checkPrivileges）操作</li>
+<li><code>SentryHiveAccessController</code>的默认实现为<code>DefaultSentryAccessController</code></li>
+<li><code>SentryHiveAuthorizationValidator</code>的默认实现为<code>DefaultSentryValidator</code>,其中的checkPrivileges方法负责鉴权，在该方法中调用了<code>HiveAuthzBinding</code>的authorize方法完成最终的权限验证</li>
+</ul>
+<h1 id="authorize"><a href="#authorize" class="headerlink" title="authorize"></a>authorize</h1><p>上面说到DefaultSentryValidator中的checkPrivileges方法调用了authorize方法进行实际的权限验证，代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">hiveAuthzBinding.authorize(hiveOp, stmtAuthPrivileges,</div><div class="line">          <span class="keyword">new</span> Subject(authenticator.getUserName()), inputHierarchyList, outputHierarchyList);</div></pre></td></tr></table></figure>
+<ul>
+<li>hiveOp是本次sql语句转化为的HiveOperation枚举对象，它表示了当前SQL对应的操作</li>
+<li>stmtAuthPrivileges表示本次操作所需的权限集合，它从一个预先定义好的系统常量表中根据hiveOp的类型取出</li>
+<li>new Subject表示的是当前的用户</li>
+<li>inputHierarchyList和outputHierarchyList分别表示输入对象和输出对象</li>
+</ul>
+<p>由上面传入的参数可以看出，除了subject是用户相关的信息外，其他全部都是本次SQL操作所需要的权限信息，其中stmtAuthPrivileges直接表示本次operation需要的权限，inputHierarchyList和outputHierarchyList表示了本次SQL需要访问的输入、输出资源，因此，鉴权验证需要分为两步：</p>
+<ol>
+<li>用户是否拥有对输入对象列表的该operation对应的访问权限</li>
+<li>用户是否拥有对输出对象列表的该operation对应的访问权限</li>
+</ol>
+<p>下面我们进入authorize方法一探究竟</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">authorize</span><span class="params">(HiveOperation hiveOp, HiveAuthzPrivileges stmtAuthPrivileges,</span></span></div><div class="line"><span class="function"><span class="params">    Subject subject, List&lt;List&lt;DBModelAuthorizable&gt;&gt; inputHierarchyList,</span></span></div><div class="line"><span class="function"><span class="params">    List&lt;List&lt;DBModelAuthorizable&gt;&gt; outputHierarchyList)</span></span></div><div class="line"><span class="function">        <span class="keyword">throws</span> AuthorizationException </span>&#123;</div><div class="line">  <span class="keyword">if</span> (!open) &#123;</div><div class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"Binding has been closed"</span>);</div><div class="line">  &#125;</div><div class="line">  <span class="keyword">boolean</span> isDebug = LOG.isDebugEnabled();</div><div class="line">  <span class="keyword">if</span>(isDebug) &#123;</div><div class="line">    LOG.debug(<span class="string">"Going to authorize statement "</span> + hiveOp.name() +</div><div class="line">        <span class="string">" for subject "</span> + subject.getName());</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">/* for each read and write entity captured by the compiler -</span></div><div class="line"><span class="comment">   *    check if that object type is part of the input/output privilege list</span></div><div class="line"><span class="comment">   *    If it is, then validate the access.</span></div><div class="line"><span class="comment">   * Note the hive compiler gathers information on additional entities like partitions,</span></div><div class="line"><span class="comment">   * etc which are not of our interest at this point. Hence its very</span></div><div class="line"><span class="comment">   * much possible that the we won't be validating all the entities in the given list</span></div><div class="line"><span class="comment">   */</span></div><div class="line"></div><div class="line">  <span class="comment">// Check read entities</span></div><div class="line">  Map&lt;AuthorizableType, EnumSet&lt;DBModelAction&gt;&gt; requiredInputPrivileges =</div><div class="line">      stmtAuthPrivileges.getInputPrivileges();</div><div class="line">  <span class="keyword">if</span>(isDebug) &#123;</div><div class="line">    LOG.debug(<span class="string">"requiredInputPrivileges = "</span> + requiredInputPrivileges);</div><div class="line">    LOG.debug(<span class="string">"inputHierarchyList = "</span> + inputHierarchyList);</div><div class="line">  &#125;</div><div class="line">  Map&lt;AuthorizableType, EnumSet&lt;DBModelAction&gt;&gt; requiredOutputPrivileges =</div><div class="line">      stmtAuthPrivileges.getOutputPrivileges();</div><div class="line">  <span class="keyword">if</span>(isDebug) &#123;</div><div class="line">    LOG.debug(<span class="string">"requiredOuputPrivileges = "</span> + requiredOutputPrivileges);</div><div class="line">    LOG.debug(<span class="string">"outputHierarchyList = "</span> + outputHierarchyList);</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">boolean</span> found = <span class="keyword">false</span>;</div><div class="line">  <span class="keyword">for</span> (Map.Entry&lt;AuthorizableType, EnumSet&lt;DBModelAction&gt;&gt; entry : requiredInputPrivileges.entrySet()) &#123;</div><div class="line">    AuthorizableType key = entry.getKey();</div><div class="line">    <span class="keyword">for</span> (List&lt;DBModelAuthorizable&gt; inputHierarchy : inputHierarchyList) &#123;</div><div class="line">      <span class="keyword">if</span> (getAuthzType(inputHierarchy).equals(key)) &#123;</div><div class="line">        found = <span class="keyword">true</span>;</div><div class="line">        <span class="keyword">if</span> (!authProvider.hasAccess(subject, inputHierarchy, entry.getValue(), activeRoleSet)) &#123;</div><div class="line">          <span class="keyword">throw</span> <span class="keyword">new</span> AuthorizationException(<span class="string">"User "</span> + subject.getName() +</div><div class="line">              <span class="string">" does not have privileges for "</span> + hiveOp.name());</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">if</span> (!found &amp;&amp; !key.equals(AuthorizableType.URI) &amp;&amp; !(hiveOp.equals(HiveOperation.QUERY))</div><div class="line">        &amp;&amp; !(hiveOp.equals(HiveOperation.CREATETABLE_AS_SELECT))) &#123;</div><div class="line">      <span class="comment">//URI privileges are optional for some privileges: anyPrivilege, tableDDLAndOptionalUriPrivilege</span></div><div class="line">      <span class="comment">//Query can mean select/insert/analyze where all of them have different required privileges.</span></div><div class="line">      <span class="comment">//CreateAsSelect can has table/columns privileges with select.</span></div><div class="line">      <span class="comment">//For these alone we skip if there is no equivalent input privilege</span></div><div class="line">      <span class="comment">//<span class="doctag">TODO:</span> Even this case should be handled to make sure we do not skip the privilege check if we did not build</span></div><div class="line">      <span class="comment">//the input privileges correctly</span></div><div class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> AuthorizationException(<span class="string">"Required privilege( "</span> + key.name() + <span class="string">") not available in input privileges"</span>);</div><div class="line">    &#125;</div><div class="line">    found = <span class="keyword">false</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">for</span> (Map.Entry&lt;AuthorizableType, EnumSet&lt;DBModelAction&gt;&gt; entry : requiredOutputPrivileges.entrySet()) &#123;</div><div class="line">    AuthorizableType key = entry.getKey();</div><div class="line">    <span class="keyword">for</span> (List&lt;DBModelAuthorizable&gt; outputHierarchy : outputHierarchyList) &#123;</div><div class="line">      <span class="keyword">if</span> (getAuthzType(outputHierarchy).equals(key)) &#123;</div><div class="line">        found = <span class="keyword">true</span>;</div><div class="line">        <span class="keyword">if</span> (!authProvider.hasAccess(subject, outputHierarchy, entry.getValue(), activeRoleSet)) &#123;</div><div class="line">          <span class="keyword">throw</span> <span class="keyword">new</span> AuthorizationException(<span class="string">"User "</span> + subject.getName() +</div><div class="line">              <span class="string">" does not have privileges for "</span> + hiveOp.name());</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">if</span>(!found &amp;&amp; !(key.equals(AuthorizableType.URI)) &amp;&amp;  !(hiveOp.equals(HiveOperation.QUERY))) &#123;</div><div class="line">      <span class="comment">//URI privileges are optional for some privileges: tableInsertPrivilege</span></div><div class="line">      <span class="comment">//Query can mean select/insert/analyze where all of them have different required privileges.</span></div><div class="line">      <span class="comment">//For these alone we skip if there is no equivalent output privilege</span></div><div class="line">      <span class="comment">//<span class="doctag">TODO:</span> Even this case should be handled to make sure we do not skip the privilege check if we did not build</span></div><div class="line">      <span class="comment">//the output privileges correctly</span></div><div class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> AuthorizationException(<span class="string">"Required privilege( "</span> + key.name() + <span class="string">") not available in output privileges"</span>);</div><div class="line">    &#125;</div><div class="line">    found = <span class="keyword">false</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>由代码可知，传入的stmtAuthPrivileges包含了输入对象权限map和输出对象权限map，需要分别对它们进行权限的验证，map的key值为一个AuthorizableType枚举对象，取值为Server,Db,Table,Column,View,URI中的一种，对于每一个AuthorizableType，至少有一个inputList或outputList与其authzType相同,此时通过Provider的hasAccess方法判断该用户是否对该对象列表拥有相应的权限(entry.getValue代表了需要的权限)。</p>
+<p>如果没有一个inputList或者outputList与之类型相同，且该AuthorizableType不是uri,hiveOp不是QUERY操作，则直接抛出异常，这里的意思说，如果对一个表A需要进行除去select之外的操作，则必须拥有相应的权限。</p>
+<p>分析到这里发现，authorize并不是最终判断权限的方法，还需要调用Provider的hasAccess方法，这里也很好理解，因为我们这里只有本次操作的访问控制对象所需要的权限集合，并没有该用户当前获得的权限集合，因此，我们需要通过Provider来将用户的权限集合从存储介质中读出来，前面提到过，目前支持文件（本地/hdfs）和关系型数据库两种存储方式。</p>
+<p>Provider中有三个相关的对象，分别为Policy Engine， Provider， Provider Backend。</p>
+<ul>
+<li>Policy engine 默认为org.apache.sentry.policy.engine.common.CommonPolicyEngine类</li>
+<li>Provider默认为org.apache.sentry.provider.common.HadoopGroupResourceAuthorizationProvider</li>
+<li>Backend默认为org.apache.sentry.provider.file.SimpleFileProviderBackend，可以在sentry-site.xml中配置sentry.hive.provider.backend为SimpleDBProviderBackend来使用数据库存储策略</li>
+</ul>
+<p>它们三者的关系是：Provider 包含 Policy Engine 包含 Provider Backend</p>
+<p>hasAccess方法内部调用了私有方法doHasAccess，其定义如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">doHasAccess</span><span class="params">(Subject subject,</span></span></div><div class="line"><span class="function"><span class="params">    List&lt;? extends Authorizable&gt; authorizables, Set&lt;? extends Action&gt; actions,</span></span></div><div class="line"><span class="function"><span class="params">    ActiveRoleSet roleSet)</span> </span>&#123;</div><div class="line">  <span class="comment">//获得用户的组信息</span></div><div class="line">  Set&lt;String&gt; groups =  getGroups(subject);</div><div class="line">  <span class="comment">//用户名集合</span></div><div class="line">  Set&lt;String&gt; users = Sets.newHashSet(subject.getName());</div><div class="line">  <span class="comment">//授权对象集合， 形如 table=student</span></div><div class="line">  Set&lt;String&gt; hierarchy = <span class="keyword">new</span> HashSet&lt;String&gt;();</div><div class="line">  <span class="keyword">for</span> (Authorizable authorizable : authorizables) &#123;</div><div class="line">    hierarchy.add(KV_JOINER.join(authorizable.getTypeName(), authorizable.getName()));</div><div class="line">  &#125;</div><div class="line">  <span class="comment">//形如 table=student-&gt;select的数组</span></div><div class="line">  List&lt;String&gt; requestPrivileges = buildPermissions(authorizables, actions);</div><div class="line">  <span class="comment">//使用policy engine获取用户，角色对应的权限集合,此时读取数据库或策略文件</span></div><div class="line">  Iterable&lt;Privilege&gt; privileges = getPrivileges(groups, users, roleSet,</div><div class="line">      authorizables.toArray(<span class="keyword">new</span> Authorizable[<span class="number">0</span>]));</div><div class="line">  lastFailedPrivileges.get().clear();</div><div class="line"></div><div class="line">  <span class="keyword">for</span> (String requestPrivilege : requestPrivileges) &#123;</div><div class="line">    <span class="comment">//将形如table=student-&gt;select的字符串创建成Privilege对象，用于权限验证</span></div><div class="line">    Privilege priv = privilegeFactory.createPrivilege(requestPrivilege);</div><div class="line">    <span class="keyword">for</span> (Privilege permission : privileges) &#123;</div><div class="line">      <span class="comment">/*</span></div><div class="line"><span class="comment">       * Does the permission granted in the policy file imply the requested action?</span></div><div class="line"><span class="comment">       */</span></div><div class="line">      <span class="keyword">boolean</span> result = permission.implies(priv, model);</div><div class="line">      <span class="keyword">if</span> (LOGGER.isDebugEnabled()) &#123;</div><div class="line">        LOGGER.debug(<span class="string">"ProviderPrivilege &#123;&#125;, RequestPrivilege &#123;&#125;, RoleSet &#123;&#125;, Result &#123;&#125;"</span>,</div><div class="line">            <span class="keyword">new</span> Object[]&#123; permission, requestPrivilege, roleSet, result&#125;);</div><div class="line">      &#125;</div><div class="line">      <span class="keyword">if</span> (result) &#123;</div><div class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">      &#125;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  lastFailedPrivileges.get().addAll(requestPrivileges);</div><div class="line">  <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>permission.implies(priv, model);是最终的权限验证步骤，调用的是Privilege的该方法，在此处，是Privilege的一个实现类CommonPrivilege，它通过传入一个字符串进行构造，将其解析为一个KeyValue的List，然后在implies方法中使用它来进行权限的验证，implies方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">implies</span><span class="params">(Privilege privilege, Model model)</span> </span>&#123;</div><div class="line">  <span class="comment">// By default only supports comparisons with other IndexerWildcardPermissions</span></div><div class="line">  <span class="keyword">if</span> (!(privilege <span class="keyword">instanceof</span> CommonPrivilege)) &#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  List&lt;KeyValue&gt; otherParts = ((CommonPrivilege) privilege).getParts();</div><div class="line">  <span class="keyword">if</span>(parts.equals(otherParts)) &#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">int</span> index = <span class="number">0</span>;</div><div class="line">  <span class="keyword">for</span> (KeyValue otherPart : otherParts) &#123;</div><div class="line">    <span class="comment">// If this privilege has less parts than the other privilege, everything</span></div><div class="line">    <span class="comment">// after the number of parts contained</span></div><div class="line">    <span class="comment">// in this privilege is automatically implied, so return true</span></div><div class="line">    <span class="comment">//这里的含义是，如果用户对table拥有权限，当前访问的对象(other)为column，则用户默认拥有对column的权限，粗粒度的权限包含了细粒度的权限</span></div><div class="line">    <span class="keyword">if</span> (parts.size() - <span class="number">1</span> &lt; index) &#123;</div><div class="line">      <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">      KeyValue part = parts.get(index);</div><div class="line">      String policyKey = part.getKey();</div><div class="line">      <span class="comment">// are the keys even equal</span></div><div class="line">      <span class="keyword">if</span>(!policyKey.equalsIgnoreCase(otherPart.getKey())) &#123;</div><div class="line">        <span class="comment">// Support for action inheritance from parent to child</span></div><div class="line">        <span class="keyword">if</span> (SentryConstants.PRIVILEGE_NAME.equalsIgnoreCase(policyKey)) &#123;</div><div class="line">          <span class="keyword">continue</span>;</div><div class="line">        &#125;</div><div class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      <span class="comment">// do the imply for action</span></div><div class="line">      <span class="keyword">if</span> (SentryConstants.PRIVILEGE_NAME.equalsIgnoreCase(policyKey)) &#123;</div><div class="line">        <span class="keyword">if</span> (!impliesAction(part.getValue(), otherPart.getValue(), model.getBitFieldActionFactory())) &#123;</div><div class="line">          <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">      &#125; <span class="keyword">else</span> &#123;</div><div class="line">        <span class="keyword">if</span> (!impliesResource(model.getImplyMethodMap().get(policyKey.toLowerCase()),</div><div class="line">                part.getValue(), otherPart.getValue())) &#123;</div><div class="line">          <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">        &#125;</div><div class="line">      &#125;</div><div class="line"></div><div class="line">      index++;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="comment">// If this privilege has more parts than the other parts, only imply it if</span></div><div class="line">  <span class="comment">// all of the other parts are wildcards</span></div><div class="line">  <span class="comment">//如果该用户有更细粒度的权限，只有其权限为*时，才让其通过验证</span></div><div class="line">  <span class="keyword">for</span> (; index &lt; parts.size(); index++) &#123;</div><div class="line">    KeyValue part = parts.get(index);</div><div class="line">    <span class="keyword">if</span> (!SentryConstants.PRIVILEGE_WILDCARD_VALUE.equals(part.getValue())) &#123;</div><div class="line">      <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">    &#125;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>至此，权限的验证已经分析完成了，sentry在最终验证权限之前才根据用户的组、角色从数据库中读取其拥有的权限，并与需要的权限进行比对，用户信息的读取是在Policy backend中进行的，Policy provider层屏蔽了不同组件的权限分类，使用通用的形式进行验证，可以进行重复使用。</p>
+<h1 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h1><p>本文分析了Sentry是如何对HiveServer2进行用户的细粒度访问控制的，并详细介绍了从session hook设置用户信息，到Policy backend读取用户已有权限的代码逻辑，对sentry的工作原理和流程有了初步的认识。其鉴权的本质是将用户已有的权限与访问对象所需权限进行比对，如果全部满足，或者用户已有权限更加粗粒度，此时认为该用户拥有其资源的访问权限，可以理解为权限字符串的比对。sentry通过一个通用的Policy Provider来对屏蔽不同组件的权限对象的差异性，达到了一个通用模块来进行权限验证的目的。</p>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> sentry </tag>
+            
+            <tag> 细粒度访问控制 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[TreeMap源码阅读]]></title>
       <url>/2017/12/19/TreeMap_info/</url>
       <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>TreeMap算是要分析的Map家族中的最后一个成员了，它是AbstractMap的子类，并实现了NavigableMap接口，是Map家族中比较特殊的，支持元素排序插入的Map集合类。</p>
@@ -897,9 +994,9 @@
         
         <tags>
             
-            <tag> kubernetes </tag>
-            
             <tag> etcd </tag>
+            
+            <tag> kubernetes </tag>
             
         </tags>
         
@@ -1070,67 +1167,6 @@
     </entry>
     
     <entry>
-      <title><![CDATA[Zookeeper是动物管理员吗]]></title>
-      <url>/2017/09/29/zookeeper1/</url>
-      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。</p>
-<a id="more"></a>
-<h1 id="Zookeeper到底是不是动物管理员？"><a href="#Zookeeper到底是不是动物管理员？" class="headerlink" title="Zookeeper到底是不是动物管理员？"></a>Zookeeper到底是不是动物管理员？</h1><p>这个问题的答案可以从Zookeeper的的官网标志图初探端倪。</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
-<p>由上图，Zookeeper是一个穿着工装，拿着铁锹的工人啊，这不符合管理员的形象吧，管理员不应该是西装革履的吗？好吧，有些牵强，那我们来看看keeper这个词的翻译，使用百度在线翻译的结果如下：</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/36748004.jpg" alt=""></p>
-<p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
-<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
-<h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg" alt="zookeeper roles"></p>
-<ul>
-<li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
-</ul>
-<p>集群模型如下:</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg" alt="zookeeper service"></p>
-<p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
-<h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
-<h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
-<p><img src="http://www.wuzesheng.com/wp-content/uploads/2013/12/zookeeper-tree.jpg" alt="image"></p>
-<p>ZooKeeper数据模型的结构与Unix文件系统很类似，整体上可以看作是一棵树，每个节点称做一个ZNode。每个ZNode都可以通过其路径唯一标识，图中每个节点左侧即为其路径唯一标识。</p>
-<p>注：<br>这里的ZNode可以理解成既是Unix里的文件，又是Unix里的目录。因为每个ZNode不仅本身可以写数据（相当于Unix里的文件），还可以有下一级文件或目录（相当于Unix里的目录）。</p>
-<p>在ZooKeeper中，ZNode可以分为持久节点和临时节点两类。</p>
-<p><strong>持久节点</strong></p>
-<p>所谓持久节点是指一旦这个ZNode被创建了，除非主动进行ZNode的移除操作，否则这个ZNode将一直保存在ZooKeeper上。</p>
-<p><strong>临时节点</strong></p>
-<p>临时节点的生命周期跟客户端会话绑定，一旦客户端会话失效，那么这个客户端创建的所有临时节点都会被移除。</p>
-<h2 id="Watcher"><a href="#Watcher" class="headerlink" title="Watcher"></a>Watcher</h2><p>Watcher（事件监听器），是ZooKeeper中一个很重要的特性。ZooKeeper允许用户在指定节点上注册一些Watcher，并且在一些特定事件触发的时候，ZooKeeper服务端会将事件通知到感兴趣的客户端上去。该机制是ZooKeeper实现分布式协调服务的重要特性。</p>
-<h1 id="管理者-or-协调者"><a href="#管理者-or-协调者" class="headerlink" title="管理者 or 协调者"></a>管理者 or 协调者</h1><p>通过Zookeeper的数据节点（临时节点特性）和watcher的组合，可以满足诸如服务发布/订阅、命名服务、master选举、分布式锁等功能。而Zookeeper之所以是keeper而不是manager，正是因为它在Hadoop生态中的两大功能是选举和元数据存储，才使得它有了分布式协调者的称号。</p>
-<p>元数据指的是配置信息、服务注册列表等，这使得Zookeeper更像是一个分布式的注册表。当client需要使用Zookeeper时，如HBase Master需要选举一个主节点，那么他们就并发的去Zookeeper上创建一个临时节点（节点名称一样），Zookeeper的分布式锁可以保证只有一个client创建成功，最后创建成功的那个节点，就当选为主节点。</p>
-<p>Zookeeper在Hadoop中的应用是HDFS和YARN的HA，在HBase中的应用有选举与主备切换、系统容错（RegionServer挂掉后，HMaster获知）、Region状态信息的管理。下面我们来看一下Zookeeper是如何让HMaster获知RegionServer挂掉的信息的。</p>
-<p>当HBase启动时，每个RegionServer都会到ZooKeeper的/hbase/rs节点下创建一个信息节点（临时节点，下文中，我们称该节点为”rs状态节点”），例如/hbase/rs/[Hostname]，同时，HMaster会对这个节点注册监听。当某个 RegionServer 挂掉的时候，ZooKeeper会因为在一段时间内无法接受其心跳（即 Session 失效），而删除掉该 RegionServer 服务器对应的 rs 状态节点。与此同时，HMaster 则会接收到 ZooKeeper 的 NodeDelete 通知，从而感知到某个节点断开，并立即开始容错工作。也就是说，Zookeeper是通过心跳机制来维护临时节点信息的，如果心跳发生了timeout，则Zookeeper删除该临时节点，然后通知注册过该临时节点监听的HMaster，所以Zookeeper默认临时节点删除后，该RegionServer处于无法工作状态，至于是网络延时原因还是该RegionServer确实挂掉了，Zookeeper不管。</p>
-<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>Zookeeper在Hadoop生态中十分重要，但它并没有上升到管理员的高度，Hadoop中使用Zookeeper服务的组件都有自己的master（NameNode、ResourManager、HMaster），各组件视自己的需求，交付给Zookeeper不同程度的权力。NameNode在实现HA的时候，需要用到Zookeeper的选举和watcher功能，因此交付给Zookeeper两个NameNode，让它来决定谁为Active；YARN的HA也是如此。HMaster交给Zookeeper的权力比较大，HMaster选举与主备切换、系统容错、RootRegion管理、Region状态管理和分布式SplitWAL任务管理等都交给了Zookeeper，让Zookeeper来管理HMaster的主备以及RegionServer信息等。Zookeeper相当于是古代的丞相，皇帝（NameNode、HMaster）给它多少权力，它就执行多大的功能。或许有一天，Zookeeper会成为Hadoop生态的“管仲”、“商鞅”，而那一天会不会实现，就要看Hadoop生态的发展了。。。</p>
-<h1 id="参考博客"><a href="#参考博客" class="headerlink" title="参考博客"></a>参考博客</h1><ul>
-<li><a href="http://www.wangjialong.cc/2017/09/27/etcd&amp;zookeeper/">Zookeeper与etcd的对比</a></li>
-<li><a href="http://linbingdong.com/2017/01/10/ZooKeeper原理及其在Hadoop和HBase中的应用/" target="_blank" rel="external">ZooKeeper原理及其在Hadoop和HBase中的应用</a></li>
-<li><a href="http://cailin.iteye.com/blog/2014486" target="_blank" rel="external">Zookeeper原理</a></li>
-</ul>
-]]></content>
-      
-        <categories>
-            
-            <category> hadoop </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> hadoop </tag>
-            
-            <tag> zookeeper </tag>
-            
-            <tag> HBase </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
       <title><![CDATA[LeetCode 55 Jump Game从回溯到动态规划]]></title>
       <url>/2017/09/29/leetcode55/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>动态规划是一个降低时间的很有效的方法，通常一个可以使用递归从上到下来解决的题目，必定可以转化为动态规划，从下往上计算，并通过设置一个数组存放子问题的解，来降低问题的求解步骤。LeetCode上的第55题可以使用回溯法和动态规划来解决，但回溯法会造成栈溢出，下面讲解我的解题思路。</p>
@@ -1188,6 +1224,67 @@
             <tag> Java </tag>
             
             <tag> LeetCode、动态规划 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[Zookeeper是动物管理员吗]]></title>
+      <url>/2017/09/29/zookeeper1/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。</p>
+<a id="more"></a>
+<h1 id="Zookeeper到底是不是动物管理员？"><a href="#Zookeeper到底是不是动物管理员？" class="headerlink" title="Zookeeper到底是不是动物管理员？"></a>Zookeeper到底是不是动物管理员？</h1><p>这个问题的答案可以从Zookeeper的的官网标志图初探端倪。</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
+<p>由上图，Zookeeper是一个穿着工装，拿着铁锹的工人啊，这不符合管理员的形象吧，管理员不应该是西装革履的吗？好吧，有些牵强，那我们来看看keeper这个词的翻译，使用百度在线翻译的结果如下：</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/36748004.jpg" alt=""></p>
+<p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
+<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
+<h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg" alt="zookeeper roles"></p>
+<ul>
+<li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
+</ul>
+<p>集群模型如下:</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg" alt="zookeeper service"></p>
+<p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
+<h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
+<h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
+<p><img src="http://www.wuzesheng.com/wp-content/uploads/2013/12/zookeeper-tree.jpg" alt="image"></p>
+<p>ZooKeeper数据模型的结构与Unix文件系统很类似，整体上可以看作是一棵树，每个节点称做一个ZNode。每个ZNode都可以通过其路径唯一标识，图中每个节点左侧即为其路径唯一标识。</p>
+<p>注：<br>这里的ZNode可以理解成既是Unix里的文件，又是Unix里的目录。因为每个ZNode不仅本身可以写数据（相当于Unix里的文件），还可以有下一级文件或目录（相当于Unix里的目录）。</p>
+<p>在ZooKeeper中，ZNode可以分为持久节点和临时节点两类。</p>
+<p><strong>持久节点</strong></p>
+<p>所谓持久节点是指一旦这个ZNode被创建了，除非主动进行ZNode的移除操作，否则这个ZNode将一直保存在ZooKeeper上。</p>
+<p><strong>临时节点</strong></p>
+<p>临时节点的生命周期跟客户端会话绑定，一旦客户端会话失效，那么这个客户端创建的所有临时节点都会被移除。</p>
+<h2 id="Watcher"><a href="#Watcher" class="headerlink" title="Watcher"></a>Watcher</h2><p>Watcher（事件监听器），是ZooKeeper中一个很重要的特性。ZooKeeper允许用户在指定节点上注册一些Watcher，并且在一些特定事件触发的时候，ZooKeeper服务端会将事件通知到感兴趣的客户端上去。该机制是ZooKeeper实现分布式协调服务的重要特性。</p>
+<h1 id="管理者-or-协调者"><a href="#管理者-or-协调者" class="headerlink" title="管理者 or 协调者"></a>管理者 or 协调者</h1><p>通过Zookeeper的数据节点（临时节点特性）和watcher的组合，可以满足诸如服务发布/订阅、命名服务、master选举、分布式锁等功能。而Zookeeper之所以是keeper而不是manager，正是因为它在Hadoop生态中的两大功能是选举和元数据存储，才使得它有了分布式协调者的称号。</p>
+<p>元数据指的是配置信息、服务注册列表等，这使得Zookeeper更像是一个分布式的注册表。当client需要使用Zookeeper时，如HBase Master需要选举一个主节点，那么他们就并发的去Zookeeper上创建一个临时节点（节点名称一样），Zookeeper的分布式锁可以保证只有一个client创建成功，最后创建成功的那个节点，就当选为主节点。</p>
+<p>Zookeeper在Hadoop中的应用是HDFS和YARN的HA，在HBase中的应用有选举与主备切换、系统容错（RegionServer挂掉后，HMaster获知）、Region状态信息的管理。下面我们来看一下Zookeeper是如何让HMaster获知RegionServer挂掉的信息的。</p>
+<p>当HBase启动时，每个RegionServer都会到ZooKeeper的/hbase/rs节点下创建一个信息节点（临时节点，下文中，我们称该节点为”rs状态节点”），例如/hbase/rs/[Hostname]，同时，HMaster会对这个节点注册监听。当某个 RegionServer 挂掉的时候，ZooKeeper会因为在一段时间内无法接受其心跳（即 Session 失效），而删除掉该 RegionServer 服务器对应的 rs 状态节点。与此同时，HMaster 则会接收到 ZooKeeper 的 NodeDelete 通知，从而感知到某个节点断开，并立即开始容错工作。也就是说，Zookeeper是通过心跳机制来维护临时节点信息的，如果心跳发生了timeout，则Zookeeper删除该临时节点，然后通知注册过该临时节点监听的HMaster，所以Zookeeper默认临时节点删除后，该RegionServer处于无法工作状态，至于是网络延时原因还是该RegionServer确实挂掉了，Zookeeper不管。</p>
+<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>Zookeeper在Hadoop生态中十分重要，但它并没有上升到管理员的高度，Hadoop中使用Zookeeper服务的组件都有自己的master（NameNode、ResourManager、HMaster），各组件视自己的需求，交付给Zookeeper不同程度的权力。NameNode在实现HA的时候，需要用到Zookeeper的选举和watcher功能，因此交付给Zookeeper两个NameNode，让它来决定谁为Active；YARN的HA也是如此。HMaster交给Zookeeper的权力比较大，HMaster选举与主备切换、系统容错、RootRegion管理、Region状态管理和分布式SplitWAL任务管理等都交给了Zookeeper，让Zookeeper来管理HMaster的主备以及RegionServer信息等。Zookeeper相当于是古代的丞相，皇帝（NameNode、HMaster）给它多少权力，它就执行多大的功能。或许有一天，Zookeeper会成为Hadoop生态的“管仲”、“商鞅”，而那一天会不会实现，就要看Hadoop生态的发展了。。。</p>
+<h1 id="参考博客"><a href="#参考博客" class="headerlink" title="参考博客"></a>参考博客</h1><ul>
+<li><a href="http://www.wangjialong.cc/2017/09/27/etcd&amp;zookeeper/">Zookeeper与etcd的对比</a></li>
+<li><a href="http://linbingdong.com/2017/01/10/ZooKeeper原理及其在Hadoop和HBase中的应用/" target="_blank" rel="external">ZooKeeper原理及其在Hadoop和HBase中的应用</a></li>
+<li><a href="http://cailin.iteye.com/blog/2014486" target="_blank" rel="external">Zookeeper原理</a></li>
+</ul>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> zookeeper </tag>
+            
+            <tag> HBase </tag>
             
         </tags>
         
@@ -1343,9 +1440,9 @@
             
             <tag> hadoop </tag>
             
-            <tag> etcd </tag>
-            
             <tag> zookeeper </tag>
+            
+            <tag> etcd </tag>
             
         </tags>
         
@@ -1789,6 +1886,31 @@
     </entry>
     
     <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[使用httpd搭建内网yum源]]></title>
       <url>/2017/09/14/private_yum/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
@@ -1859,31 +1981,6 @@
             <tag> 运维 </tag>
             
             <tag> 内网yum源 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
-      <title><![CDATA[Green Blue Deployment]]></title>
-      <url>/2017/09/14/greenBlueDeploy/</url>
-      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 运维 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 运维 </tag>
-            
-            <tag> 部署 </tag>
             
         </tags>
         
