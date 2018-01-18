@@ -6,6 +6,7 @@
       <title><![CDATA[AtomicXFieldUpdater，属性原子修改的外部工具类]]></title>
       <url>/2018/01/18/atomicXFieldHelper/</url>
       <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近在看资料的时候偶然间看到了AtomicLongFieldUpdater这个工具类，觉得新鲜就查阅了相关的资料，发现居然是jdk1.5就有的工具类，不禁感叹自己对Java的理解还是太浅了，于是在此整理一下该类的资料，作为知识储备。</p>
+<a id="more"></a>
 <h1 id="AtomicXFieldUpdater"><a href="#AtomicXFieldUpdater" class="headerlink" title="AtomicXFieldUpdater"></a>AtomicXFieldUpdater</h1><p>根据名字，我们可以知道<code>AtomicLongFieldUpdater</code>是对long型field进行原子update的，它是一个工具类，那么有long型的话是不是就有其他类型？通过查看相应的包，发现还有<code>AtomicIntegerFieldUpdater</code>和<code>AtomicReferenceFieldUpdater</code>两个“同胞兄弟”，它们3个加起来，支持了对Integer、long、Reference的原子操作，分别对应的原子类为AtomicInteger、AtomicLong、AtomicReference，那么updater和对应的原子类有什么区别呢？</p>
 <p>拿<code>AtomicLongFieldUpdater</code>来说，通过API文档，其中写了一句：“通过反射技术来对volatile修饰的long型属性进行原子更新”。这里面有几个关键词：<strong>反射</strong>、<strong>volatile</strong>、<strong>原子更新</strong>。</p>
 <p>本着<code>talk is cheap, show me the code</code>的原则，直接上代码来展示它的用法，代码来自<a href="http://www.cnblogs.com/skywang12345/p/3514635.html" target="_blank" rel="external">博客3</a></p>
@@ -2011,31 +2012,6 @@
     </entry>
     
     <entry>
-      <title><![CDATA[Green Blue Deployment]]></title>
-      <url>/2017/09/14/greenBlueDeploy/</url>
-      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 运维 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 运维 </tag>
-            
-            <tag> 部署 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
       <title><![CDATA[使用httpd搭建内网yum源]]></title>
       <url>/2017/09/14/private_yum/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
@@ -2129,6 +2105,31 @@
         <tags>
             
             <tag> 随想 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
             
         </tags>
         
