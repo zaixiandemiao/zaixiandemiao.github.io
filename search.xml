@@ -3,6 +3,73 @@
   
     
     <entry>
+      <title><![CDATA[AtomicXFieldUpdater，属性原子修改的外部工具类]]></title>
+      <url>/2018/01/18/atomicXFieldHelper/</url>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近在看资料的时候偶然间看到了AtomicLongFieldUpdater这个工具类，觉得新鲜就查阅了相关的资料，发现居然是jdk1.5就有的工具类，不禁感叹自己对Java的理解还是太浅了，于是在此整理一下该类的资料，作为知识储备。</p>
+<h1 id="AtomicXFieldUpdater"><a href="#AtomicXFieldUpdater" class="headerlink" title="AtomicXFieldUpdater"></a>AtomicXFieldUpdater</h1><p>根据名字，我们可以知道<code>AtomicLongFieldUpdater</code>是对long型field进行原子update的，它是一个工具类，那么有long型的话是不是就有其他类型？通过查看相应的包，发现还有<code>AtomicIntegerFieldUpdater</code>和<code>AtomicReferenceFieldUpdater</code>两个“同胞兄弟”，它们3个加起来，支持了对Integer、long、Reference的原子操作，分别对应的原子类为AtomicInteger、AtomicLong、AtomicReference，那么updater和对应的原子类有什么区别呢？</p>
+<p>拿<code>AtomicLongFieldUpdater</code>来说，通过API文档，其中写了一句：“通过反射技术来对volatile修饰的long型属性进行原子更新”。这里面有几个关键词：<strong>反射</strong>、<strong>volatile</strong>、<strong>原子更新</strong>。</p>
+<p>本着<code>talk is cheap, show me the code</code>的原则，直接上代码来展示它的用法，代码来自<a href="http://www.cnblogs.com/skywang12345/p/3514635.html" target="_blank" rel="external">博客3</a></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// LongTest.java的源码</span></div><div class="line"><span class="keyword">import</span> java.util.concurrent.atomic.AtomicLongFieldUpdater;</div><div class="line"></div><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">LongFieldTest</span> </span>&#123;</div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</div><div class="line"></div><div class="line">        <span class="comment">// 获取Person的class对象</span></div><div class="line">        Class cls = Person.class;</div><div class="line">        <span class="comment">// 新建AtomicLongFieldUpdater对象，传递参数是“class对象”和要update的属性名"id"</span></div><div class="line">        AtomicLongFieldUpdater mAtoLong = AtomicLongFieldUpdater.newUpdater(cls, <span class="string">"id"</span>);</div><div class="line">        Person person = <span class="keyword">new</span> Person(<span class="number">12345678L</span>);</div><div class="line"></div><div class="line">        <span class="comment">// 比较person的"id"属性，如果id的值为12345678L，则设置为1000。</span></div><div class="line">        mAtoLong.compareAndSet(person, <span class="number">12345678L</span>, <span class="number">1000</span>);</div><div class="line">        System.out.println(<span class="string">"id="</span>+person.getId());</div><div class="line">    &#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">Person</span> </span>&#123;</div><div class="line">    <span class="keyword">volatile</span> <span class="keyword">long</span> id;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Person</span><span class="params">(<span class="keyword">long</span> id)</span> </span>&#123;</div><div class="line">        <span class="keyword">this</span>.id = id;</div><div class="line">    &#125;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setId</span><span class="params">(<span class="keyword">long</span> id)</span> </span>&#123;</div><div class="line">        <span class="keyword">this</span>.id = id;</div><div class="line">    &#125;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">getId</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> id;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>上面代码最终输出的为1000，有几个需要关注的点</p>
+<ol>
+<li>updater通过<code>AtomicLongFieldUpdater.newUpdater</code>来构造，通过传入类对应的class和要修改的属性名”id”指定该updater所要修改的类的属性，此处为Person的id</li>
+<li>通过compareAndSet(CAS)来进行原子的修改，12345678L是expectedValue，如果传入的person对象的id不为12345678L，则修改失败，这里保证了线程安全，试想在多线程环境下，threadA和threadB同时执行CAS操作，12345678L是传入的expectedValue，只有第一个到达的线程可以成功的执行CAS，将该id修改成希望修改的值</li>
+</ol>
+<p>根据Java API的说法，这个工具类不能保证完全的原子性，它只能保证相同updater上执行CAS和set操作的原子性，因此它的原子性是弱与AtomicLong的。为什么呢？因为AtomicLong是对long型属性加了一层原子引用，任何想要修改该long值的操作都需要先获得该原子引用，而updater不会为属性增加原子引用，它是通过反射技术，通过外部操作去修改long型属性值，因此它的原子保证也是通过外部限制的，因此只能保证同一updater进行CAS和set的原子性。</p>
+<p>可以说上面的特性既是<code>AtomicLongFieldUpdater</code>的优点，也是它的缺点，为什么说呢？试想对于下面的类(代码来源于<a href="http://www.infoq.com/cn/articles/A-Post-Apocalyptic-sun.misc.Unsafe-World" target="_blank" rel="external">博客1</a>)，Record是一个记录类，保存了系统中的一条记录信息，version属性是版本的计数。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Record</span> </span>&#123;</div><div class="line"> <span class="keyword">private</span> <span class="keyword">final</span> AtomicLong version = <span class="keyword">new</span> AtomicLong(<span class="number">0</span>);</div><div class="line"></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">update</span><span class="params">()</span> </span>&#123;</div><div class="line">   <span class="keyword">return</span> version.incrementAndGet();</div><div class="line"> &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>update方法更新版本号使其加一。这个类看起来逻辑十分清晰，但有一个隐藏的缺陷，就是每个Record都有一个对应的AtomicLong与之对应，如果系统有上亿条Record(<em>夸张而谈</em>)，而我们对于update方法的调用并不是很多，更多的是读取version的值，那么这会对堆空间造成严重的污染，大量的AtomicLong存在于堆上(<em>栈上存引用，堆上存实际的对象值</em>)，造成了内存的浪费，且AtomicLong的读取需要使用get方法，效率比正常变量的读取要慢，那么如何优化呢？</p>
+<p>使用<code>AtomicLongFieldUpdater</code>，我们可以把Record类定义如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Record</span> </span>&#123;</div><div class="line"> <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> AtomicLongFieldUpdater&lt;Record&gt; VERSION =</div><div class="line">      AtomicLongFieldUpdater.newUpdater(Record.class, <span class="string">"version"</span>);</div><div class="line"></div><div class="line"> <span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">long</span> version = <span class="number">0</span>;</div><div class="line"></div><div class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">update</span><span class="params">()</span> </span>&#123;</div><div class="line">   <span class="keyword">return</span> VERSION.incrementAndGet(<span class="keyword">this</span>);</div><div class="line"> &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>通过改造，对于version属性正常的读取操作可以像普通属性读取那样进行，而当需要update的时候，使用<code>AtomicLongFieldUpdater</code>的<code>incrementAndGet</code>方法来进行，这样内存空间节省了下来(1. AtomicLong对象的引用和值统统不需要，对于拥有大量Record的系统无疑是很大的内存空间 2. version的读取和普通属性读取相同)，还有一个好处是<code>AtomicLongFieldUpdater</code>是一个静态常量，它在Record类加载的时候就放在了堆空间的常量池中，对于N个Record，只需要一个<code>AtomicLongFieldUpdater</code>即可（类静态常量），如何还不清晰的话，可以把static final修饰的看作一个”全局常量”，整个系统只存在一个。</p>
+<p>因此，虽然原子性不如<code>AtomicLong</code>，但它的效率很高，在特定的场景下有着很好的应用。Stack Overflow有一个回答比较好<a href="https://stackoverflow.com/questions/17239568/real-life-use-and-explanation-of-the-atomiclongfieldupdate-class" target="_blank" rel="external">引文3</a>，对于CPU的消耗来说，其从小到大依次为：</p>
+<ul>
+<li><code>long</code>: 最小， 多线程不安全</li>
+<li><code>volatile long</code>: 消耗&gt;long, 多线程读取安全，但无法进行原子操作</li>
+<li><code>AtomicLong</code>:消耗&gt;volatile long,多线程读安全，可进行原子操作</li>
+<li><code>AtomicLongFieldUpdate</code>：消耗&gt;AtomicLong，因为其使用反射技术，多线程安全和可原子操作</li>
+</ul>
+<p>因此<code>AtomicLongFieldUpdate</code>的场景是，对于long的正常读写是占比很大的操作，原子操作只占很小的比例，并且多线程读取时必要的，此时可以使用<code>AtomicLongFieldUpdate</code>+<code>volatile</code>的组合。</p>
+<h1 id="AtomicReference"><a href="#AtomicReference" class="headerlink" title="AtomicReference"></a>AtomicReference</h1><p>如果我们有一个双向链表，想要对链表中节点的替换进行原子操作，此时我们可以使用如下的代码:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">Node</span> </span>&#123;</div><div class="line">   <span class="keyword">private</span> <span class="keyword">volatile</span> Node left, right;</div><div class="line"></div><div class="line">   <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> AtomicReferenceFieldUpdater&lt;Node, Node&gt; leftUpdater =</div><div class="line">     AtomicReferenceFieldUpdater.newUpdater(Node.class, Node.class, <span class="string">"left"</span>);</div><div class="line">   <span class="keyword">private</span> <span class="keyword">static</span> AtomicReferenceFieldUpdater&lt;Node, Node&gt; rightUpdater =</div><div class="line">     AtomicReferenceFieldUpdater.newUpdater(Node.class, Node.class, <span class="string">"right"</span>);</div><div class="line"></div><div class="line">   <span class="function">Node <span class="title">getLeft</span><span class="params">()</span> </span>&#123; <span class="keyword">return</span> left; &#125;</div><div class="line">   <span class="function"><span class="keyword">boolean</span> <span class="title">compareAndSetLeft</span><span class="params">(Node expect, Node update)</span> </span>&#123;</div><div class="line">     <span class="keyword">return</span> leftUpdater.compareAndSet(<span class="keyword">this</span>, expect, update);</div><div class="line">   &#125;</div><div class="line">   <span class="comment">// ... and so on</span></div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+<p><code>compareAndSetLeft</code>方法原子的将left指针从expect修改为update。我们知道，通过CAS实现的并发链表，其并发访问性能是最好的，因为无需给节点进行加锁，上面的代码是一个多线程访问的双向链表，拥有良好的读性能。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>通过上文的分析，总结<code>AtomicLongFieldUpdate</code>的使用场景主要如下(对另外两个也适用)：</p>
+<ul>
+<li>多数情况下对属性操作为正常的读写，偶尔需要原子操作(CAS)</li>
+<li>该对象在系统中大量存在(如Record)，需要节省AtomicLong的内置原子引用所带来的内存消耗.</li>
+</ul>
+<p>据说ConcurrentHashMap, ConcurrentLinkedQueue和ConcurrentSkipListMap中有对AtomicXFieldUpdater工具类的使用，有机会可以通过源码加深一下理解，也可以读一下AtomicXFieldUpdater类的源码，对于AtomicLong和AtomicLongFieldUpdate的内存空间比较可以参考<a href="http://normanmaurer.me/blog/2013/10/28/Lesser-known-concurrent-classes-Part-1/" target="_blank" rel="external">引文6</a></p>
+<h1 id="参考博客"><a href="#参考博客" class="headerlink" title="参考博客"></a>参考博客</h1><ol>
+<li><a href="http://www.infoq.com/cn/articles/A-Post-Apocalyptic-sun.misc.Unsafe-World" target="_blank" rel="external">sun.misc.Unsafe的后启示录</a></li>
+<li><a href="https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicLongFieldUpdater.html" target="_blank" rel="external">AtomicLongFieldUpdater API</a></li>
+<li><a href="https://stackoverflow.com/questions/17239568/real-life-use-and-explanation-of-the-atomiclongfieldupdate-class" target="_blank" rel="external">Real life use and explanation of the AtomicLongFieldUpdate class
+</a></li>
+<li><a href="http://www.cnblogs.com/skywang12345/p/3514635.html" target="_blank" rel="external">AtomicLongFieldUpdater原子类</a></li>
+<li><a href="https://javamex.com/tutorials/synchronization_concurrency_7_atomic_updaters.shtml" target="_blank" rel="external">Atomic field updaters</a></li>
+<li><a href="http://normanmaurer.me/blog/2013/10/28/Lesser-known-concurrent-classes-Part-1/" target="_blank" rel="external">Lesser known concurrent classes - Atomic*FieldUpdater</a></li>
+</ol>
+]]></content>
+      
+        <categories>
+            
+            <category> Java </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> Java </tag>
+            
+            <tag> AtomicXFieldUpdater </tag>
+            
+            <tag> concurrent </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[【译文】Apache HAWQ：MPP的进化]]></title>
       <url>/2018/01/11/hwaq_info/</url>
       <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好<a href="https://content.pivotal.io/blog/apache-hawq-next-step-in-massively-parallel-processing" target="_blank" rel="external">Apache HAWQ</a>，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。</p>
@@ -1944,6 +2011,31 @@
     </entry>
     
     <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[使用httpd搭建内网yum源]]></title>
       <url>/2017/09/14/private_yum/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
@@ -2037,31 +2129,6 @@
         <tags>
             
             <tag> 随想 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
-      <title><![CDATA[Green Blue Deployment]]></title>
-      <url>/2017/09/14/greenBlueDeploy/</url>
-      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 运维 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 运维 </tag>
-            
-            <tag> 部署 </tag>
             
         </tags>
         
