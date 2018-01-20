@@ -81,13 +81,13 @@
 
 
 
-<meta name="description" content="前言最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好Apache HAWQ，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。">
+<meta name="description" content="前言最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好Apache HAWQ，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。博客原文地址【译文】Apache HAWQ：MPP的进化">
 <meta name="keywords" content="hadoop,HAWQ,MPP">
 <meta property="og:type" content="article">
 <meta property="og:title" content="【译文】Apache HAWQ：MPP的进化">
 <meta property="og:url" content="http://www.wangjialong.cc/2018/01/11/hwaq_info/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="前言最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好Apache HAWQ，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。">
+<meta property="og:description" content="前言最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好Apache HAWQ，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。博客原文地址【译文】Apache HAWQ：MPP的进化">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-8/41372192.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-8/29605991.jpg">
@@ -96,10 +96,10 @@
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-9/55097613.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-9/22349184.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-9/73954191.jpg">
-<meta property="og:updated_time" content="2018-01-11T12:50:06.745Z">
+<meta property="og:updated_time" content="2018-01-20T02:02:44.126Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="【译文】Apache HAWQ：MPP的进化">
-<meta name="twitter:description" content="前言最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好Apache HAWQ，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。">
+<meta name="twitter:description" content="前言最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好Apache HAWQ，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。博客原文地址【译文】Apache HAWQ：MPP的进化">
 <meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-8/41372192.jpg">
 
 
@@ -366,7 +366,7 @@
       
 
       
-        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好<a href="https://content.pivotal.io/blog/apache-hawq-next-step-in-massively-parallel-processing" target="_blank" rel="external">Apache HAWQ</a>，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。</p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好<a href="https://content.pivotal.io/blog/apache-hawq-next-step-in-massively-parallel-processing" target="_blank" rel="external">Apache HAWQ</a>，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。博客原文地址<a href="http://www.wangjialong.cc/2018/01/11/hwaq_info/#more">【译文】Apache HAWQ：MPP的进化</a></p>
 <a id="more"></a>
 <h1 id="正文"><a href="#正文" class="headerlink" title="正文"></a>正文</h1><p><a href="http://hawq.incubator.apache.org/" target="_blank" rel="external">Apache HAWQ(incubating)</a>的第一个版本受益于ASF(Apache software foundation)组织，通过将MPP(Massively Parallel Processing)和批处理系统(batch system)有效的结合，在性能上有了很大的提升，并且克服了一些关键的限制问题。一个新的重新设计的执行引擎在以下的几个问题在总体系统性能上有了很大的提高：</p>
 <ul>

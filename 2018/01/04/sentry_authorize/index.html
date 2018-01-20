@@ -81,20 +81,20 @@
 
 
 
-<meta name="description" content="前言Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。">
+<meta name="description" content="前言Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。博客地址Sentry源码之HiveServer2鉴权过程">
 <meta name="keywords" content="hadoop,sentry,细粒度访问控制">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Sentry源码之HiveServer2鉴权过程">
 <meta property="og:url" content="http://www.wangjialong.cc/2018/01/04/sentry_authorize/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="前言Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。">
+<meta property="og:description" content="前言Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。博客地址Sentry源码之HiveServer2鉴权过程">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-3/37903285.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-3/96935367.jpg">
-<meta property="og:updated_time" content="2018-01-04T01:23:03.561Z">
+<meta property="og:updated_time" content="2018-01-20T01:55:05.668Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Sentry源码之HiveServer2鉴权过程">
-<meta name="twitter:description" content="前言Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。">
+<meta name="twitter:description" content="前言Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。博客地址Sentry源码之HiveServer2鉴权过程">
 <meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-3/37903285.jpg">
 
 
@@ -361,7 +361,7 @@
       
 
       
-        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。</p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。博客地址<a href="http://www.wangjialong.cc/2018/01/04/sentry_authorize/#more">Sentry源码之HiveServer2鉴权过程</a></p>
 <a id="more"></a>
 <h1 id="Sentry架构简述"><a href="#Sentry架构简述" class="headerlink" title="Sentry架构简述"></a>Sentry架构简述</h1><p>Sentry的设计目标是作为一层独立的访问控制层来对Hadoop组件（目前支持HDFS，Hive，Impala，solr，kafka，sqoop）进行授权/鉴权操作，因此它的耦合度很低，以插件的形式工作于组件之上。可以把它看作Java web中的filter，当用户请求过来的时候，sentry截获了用户的信息，对用户的权限进行验证，如果成功，则让该请求通过；否则，抛出异常，阻断该请求。</p>
 <p>Sentry是一个分层的结构，如下图所示</p>

@@ -5,7 +5,7 @@
     <entry>
       <title><![CDATA[AtomicXFieldUpdater，属性原子修改的外部工具类]]></title>
       <url>/2018/01/18/atomicXFieldHelper/</url>
-      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近在看资料的时候偶然间看到了AtomicLongFieldUpdater这个工具类，觉得新鲜就查阅了相关的资料，发现居然是jdk1.5就有的工具类，不禁感叹自己对Java的理解还是太浅了，于是在此整理一下该类的资料，作为知识储备。</p>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近在看资料的时候偶然间看到了AtomicLongFieldUpdater这个工具类，觉得新鲜就查阅了相关的资料，发现居然是jdk1.5就有的工具类，不禁感叹自己对Java的理解还是太浅了，于是在此整理一下该类的资料，作为知识储备。本篇博客原文地址<a href="http://www.wangjialong.cc/2018/01/18/atomicXFieldHelper/#more">AtomicXFieldUpdater，属性原子修改的外部工具类</a></p>
 <a id="more"></a>
 <h1 id="AtomicXFieldUpdater"><a href="#AtomicXFieldUpdater" class="headerlink" title="AtomicXFieldUpdater"></a>AtomicXFieldUpdater</h1><p>根据名字，我们可以知道<code>AtomicLongFieldUpdater</code>是对long型field进行原子update的，它是一个工具类，那么有long型的话是不是就有其他类型？通过查看相应的包，发现还有<code>AtomicIntegerFieldUpdater</code>和<code>AtomicReferenceFieldUpdater</code>两个“同胞兄弟”，它们3个加起来，支持了对Integer、long、Reference的原子操作，分别对应的原子类为AtomicInteger、AtomicLong、AtomicReference，那么updater和对应的原子类有什么区别呢？</p>
 <p>拿<code>AtomicLongFieldUpdater</code>来说，通过API文档，其中写了一句：“通过反射技术来对volatile修饰的long型属性进行原子更新”。这里面有几个关键词：<strong>反射</strong>、<strong>volatile</strong>、<strong>原子更新</strong>。</p>
@@ -73,7 +73,7 @@
     <entry>
       <title><![CDATA[【译文】Apache HAWQ：MPP的进化]]></title>
       <url>/2018/01/11/hwaq_info/</url>
-      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好<a href="https://content.pivotal.io/blog/apache-hawq-next-step-in-massively-parallel-processing" target="_blank" rel="external">Apache HAWQ</a>，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。</p>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近研究Hive和Impala的时候，发现了它们的计算方式的不同，Hive是使用Map Reduce或Tez来执行tasks，而Impala使用的是MPP，以前在课上也对MPP有所了解，但不是很懂，因此到网上查阅了很多资料。最后发现了这篇英文的博客比较好<a href="https://content.pivotal.io/blog/apache-hawq-next-step-in-massively-parallel-processing" target="_blank" rel="external">Apache HAWQ</a>，对两者的比较也较为详细，在此将它翻译一下，加深一下自己的理解。博客原文地址<a href="http://www.wangjialong.cc/2018/01/11/hwaq_info/#more">【译文】Apache HAWQ：MPP的进化</a></p>
 <a id="more"></a>
 <h1 id="正文"><a href="#正文" class="headerlink" title="正文"></a>正文</h1><p><a href="http://hawq.incubator.apache.org/" target="_blank" rel="external">Apache HAWQ(incubating)</a>的第一个版本受益于ASF(Apache software foundation)组织，通过将MPP(Massively Parallel Processing)和批处理系统(batch system)有效的结合，在性能上有了很大的提升，并且克服了一些关键的限制问题。一个新的重新设计的执行引擎在以下的几个问题在总体系统性能上有了很大的提高：</p>
 <ul>
@@ -154,7 +154,7 @@
     <entry>
       <title><![CDATA[Sentry源码之HiveServer2鉴权过程]]></title>
       <url>/2018/01/04/sentry_authorize/</url>
-      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。</p>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>Sentry是Hadoop生态中的一员，扮演着“守门人”的角色，看守着大数据平台的数据安全的访问。它以Plugin的形式运行于组件中，通过关系型数据库（PostgreSQL、MySQL）或本地文件来存取访问策略，对数据使用者提供细粒度的访问控制。本文试图在源码层剖析Sentry的鉴权过程，以帮助更好的理解权限的鉴定过程。博客地址<a href="http://www.wangjialong.cc/2018/01/04/sentry_authorize/#more">Sentry源码之HiveServer2鉴权过程</a></p>
 <a id="more"></a>
 <h1 id="Sentry架构简述"><a href="#Sentry架构简述" class="headerlink" title="Sentry架构简述"></a>Sentry架构简述</h1><p>Sentry的设计目标是作为一层独立的访问控制层来对Hadoop组件（目前支持HDFS，Hive，Impala，solr，kafka，sqoop）进行授权/鉴权操作，因此它的耦合度很低，以插件的形式工作于组件之上。可以把它看作Java web中的filter，当用户请求过来的时候，sentry截获了用户的信息，对用户的权限进行验证，如果成功，则让该请求通过；否则，抛出异常，阻断该请求。</p>
 <p>Sentry是一个分层的结构，如下图所示</p>
@@ -251,7 +251,7 @@
     <entry>
       <title><![CDATA[TreeMap源码阅读]]></title>
       <url>/2017/12/19/TreeMap_info/</url>
-      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>TreeMap算是要分析的Map家族中的最后一个成员了，它是AbstractMap的子类，并实现了NavigableMap接口，是Map家族中比较特殊的，支持元素排序插入的Map集合类。</p>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>TreeMap算是要分析的Map家族中的最后一个成员了，它是AbstractMap的子类，并实现了NavigableMap接口，是Map家族中比较特殊的，支持元素排序插入的Map集合类。博客原文地址<a href="http://www.wangjialong.cc/2017/12/19/TreeMap_info/#more">TreeMap源码阅读</a></p>
 <a id="more"></a>
 <h1 id="TreeMap简介"><a href="#TreeMap简介" class="headerlink" title="TreeMap简介"></a>TreeMap简介</h1><p>TreeMap的类图如下：</p>
 <p><img src="http://ow9czedj7.bkt.clouddn.com/17-12-18/6367000.jpg" alt=""></p>
@@ -322,7 +322,7 @@
     <entry>
       <title><![CDATA[HashMap1.8源码解读]]></title>
       <url>/2017/12/07/hashmap_info/</url>
-      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。</p>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。博客原文地址<a href="http://www.wangjialong.cc/2017/12/07/hashmap_info/#more">HashMap1.8源码解读</a></p>
 <a id="more"></a>
 <h1 id="HashMap"><a href="#HashMap" class="headerlink" title="HashMap"></a>HashMap</h1><p>HashMap是Map的一个Hash表类型的实现，由于Hash表的常数时间内的寻址特性，使得HashMap可以在常数的时间内执行get(key), set(key, value)方法。HashMap支持存储key和value为null的元素。</p>
 <p>HashMap有两个非常重要的初始化参数：initial capacity和load factor。initial capacity决定了存储hash(key)的返回值的bucket。因为HashMap是使用了数组加链表的形式进行元素的存储的（1.8之后增加了红黑树的支持，当链表长度大于8之后，会将链表进行<strong>树化</strong>）。</p>
@@ -1318,7 +1318,7 @@
     <entry>
       <title><![CDATA[Zookeeper是动物管理员吗]]></title>
       <url>/2017/09/29/zookeeper1/</url>
-      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。</p>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。博客原文地址<a href="http://www.wangjialong.cc/2017/09/29/zookeeper1/#more">Zookeeper是动物管理员吗</a></p>
 <a id="more"></a>
 <h1 id="Zookeeper到底是不是动物管理员？"><a href="#Zookeeper到底是不是动物管理员？" class="headerlink" title="Zookeeper到底是不是动物管理员？"></a>Zookeeper到底是不是动物管理员？</h1><p>这个问题的答案可以从Zookeeper的的官网标志图初探端倪。</p>
 <p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
@@ -1442,7 +1442,7 @@
     <entry>
       <title><![CDATA[zookeeper与etcd的类比]]></title>
       <url>/2017/09/27/etcd&amp;zookeeper/</url>
-      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>最近在看到Pachyderm的介绍时，看到作者拿YARN和Kubernetes做类比，拿Zookeeper和etcd做对比。YARN和Kubernetes的类比还相对比较好理解，毕竟他们都有资源管理和调度的职能，只不过YARN上运行的对象是JVM，而Kubernetes上运行的是容器。但是拿Zookeeper和etcd来类比我就有些不懂了，在我之前的概念里zookeeper并不是一个存储组件啊，因此有了本文的过程。</p>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>最近在看到Pachyderm的介绍时，看到作者拿YARN和Kubernetes做类比，拿Zookeeper和etcd做对比。YARN和Kubernetes的类比还相对比较好理解，毕竟他们都有资源管理和调度的职能，只不过YARN上运行的对象是JVM，而Kubernetes上运行的是容器。但是拿Zookeeper和etcd来类比我就有些不懂了，在我之前的概念里zookeeper并不是一个存储组件啊，因此有了本文的过程。博客原文地址<a href="http://www.wangjialong.cc/2017/09/27/etcd&amp;zookeeper/#more">zookeeper与etcd的类比</a></p>
 <a id="more"></a>
 <h1 id="Zookeeper和etcd可以做类比吗？"><a href="#Zookeeper和etcd可以做类比吗？" class="headerlink" title="Zookeeper和etcd可以做类比吗？"></a>Zookeeper和etcd可以做类比吗？</h1><p>etcd的官网介绍是一个分布式的K/V存储，而Zookeeper的官网介绍是一个高度可用的分布式协调者。看起来他们做的事情完全不同啊，那我们来比较一下功能介绍。</p>
 <table>

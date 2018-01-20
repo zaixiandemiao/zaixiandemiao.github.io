@@ -81,18 +81,18 @@
 
 
 
-<meta name="description" content="前言HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。">
+<meta name="description" content="前言HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。博客原文地址HashMap1.8源码解读">
 <meta name="keywords" content="Java,Collection,HashMap">
 <meta property="og:type" content="article">
 <meta property="og:title" content="HashMap1.8源码解读">
 <meta property="og:url" content="http://www.wangjialong.cc/2017/12/07/hashmap_info/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="前言HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。">
+<meta property="og:description" content="前言HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。博客原文地址HashMap1.8源码解读">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2017-12-19T12:19:46.325Z">
+<meta property="og:updated_time" content="2018-01-20T02:04:27.548Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="HashMap1.8源码解读">
-<meta name="twitter:description" content="前言HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。">
+<meta name="twitter:description" content="前言HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。博客原文地址HashMap1.8源码解读">
 
 
 
@@ -358,7 +358,7 @@
       
 
       
-        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。</p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>HashMap和HashTable可以说是Map家族中最常用的两个类了，而两者又都是通过Hash表来进行key值的映射的，因此选择将两者进行统一的比较分析，并借此了解jdk中是如何实现hash表结构的map对象的。这篇博客篇幅较长，但我觉得有很多是很有用的知识，希望读者可以耐心阅读。博客原文地址<a href="http://www.wangjialong.cc/2017/12/07/hashmap_info/#more">HashMap1.8源码解读</a></p>
 <a id="more"></a>
 <h1 id="HashMap"><a href="#HashMap" class="headerlink" title="HashMap"></a>HashMap</h1><p>HashMap是Map的一个Hash表类型的实现，由于Hash表的常数时间内的寻址特性，使得HashMap可以在常数的时间内执行get(key), set(key, value)方法。HashMap支持存储key和value为null的元素。</p>
 <p>HashMap有两个非常重要的初始化参数：initial capacity和load factor。initial capacity决定了存储hash(key)的返回值的bucket。因为HashMap是使用了数组加链表的形式进行元素的存储的（1.8之后增加了红黑树的支持，当链表长度大于8之后，会将链表进行<strong>树化</strong>）。</p>

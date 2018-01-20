@@ -4,18 +4,66 @@
 
     
   <url>
-    <loc>http://www.wangjialong.cc/2018/01/18/atomicXFieldHelper/</loc>
-    <lastmod>2018-01-18T08:32:17.173Z</lastmod>
+    <loc>http://www.wangjialong.cc/2017/09/27/etcd&zookeeper/</loc>
+    <lastmod>2018-01-20T02:06:03.080Z</lastmod>
     <data>
         <display>
-        <title>AtomicXFieldUpdater，属性原子修改的外部工具类</title>
-        <pubTime>2018-01-17T16:00:00.000Z</pubTime>
+        <title>zookeeper与etcd的类比</title>
+        <pubTime>2017-09-26T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>zookeeper</tag>
+         
+        <tag>etcd</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/09/29/zookeeper1/</loc>
+    <lastmod>2018-01-20T02:05:29.193Z</lastmod>
+    <data>
+        <display>
+        <title>Zookeeper是动物管理员吗</title>
+        <pubTime>2017-09-28T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>zookeeper</tag>
+         
+        <tag>HBase</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2017/12/07/hashmap_info/</loc>
+    <lastmod>2018-01-20T02:04:27.548Z</lastmod>
+    <data>
+        <display>
+        <title>HashMap1.8源码解读</title>
+        <pubTime>2017-12-06T16:00:00.000Z</pubTime>
         
         <tag>Java</tag>
          
-        <tag>AtomicXFieldUpdater</tag>
+        <tag>Collection</tag>
          
-        <tag>concurrent</tag>
+        <tag>HashMap</tag>
          
          
            
@@ -28,56 +76,8 @@
 
     
   <url>
-    <loc>http://www.wangjialong.cc/2018/01/11/hwaq_info/</loc>
-    <lastmod>2018-01-11T12:50:06.745Z</lastmod>
-    <data>
-        <display>
-        <title>【译文】Apache HAWQ：MPP的进化</title>
-        <pubTime>2018-01-10T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>HAWQ</tag>
-         
-        <tag>MPP</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>http://www.wangjialong.cc/2018/01/04/sentry_authorize/</loc>
-    <lastmod>2018-01-04T01:23:03.561Z</lastmod>
-    <data>
-        <display>
-        <title>Sentry源码之HiveServer2鉴权过程</title>
-        <pubTime>2018-01-03T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>sentry</tag>
-         
-        <tag>细粒度访问控制</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
     <loc>http://www.wangjialong.cc/2017/12/19/TreeMap_info/</loc>
-    <lastmod>2017-12-19T12:24:21.610Z</lastmod>
+    <lastmod>2018-01-20T02:03:40.309Z</lastmod>
     <data>
         <display>
         <title>TreeMap源码阅读</title>
@@ -100,23 +100,71 @@
 
     
   <url>
-    <loc>http://www.wangjialong.cc/2017/12/07/hashmap_info/</loc>
-    <lastmod>2017-12-19T12:19:46.325Z</lastmod>
+    <loc>http://www.wangjialong.cc/2018/01/11/hwaq_info/</loc>
+    <lastmod>2018-01-20T02:02:44.126Z</lastmod>
     <data>
         <display>
-        <title>HashMap1.8源码解读</title>
-        <pubTime>2017-12-06T16:00:00.000Z</pubTime>
+        <title>【译文】Apache HAWQ：MPP的进化</title>
+        <pubTime>2018-01-10T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>HAWQ</tag>
+         
+        <tag>MPP</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2018/01/18/atomicXFieldHelper/</loc>
+    <lastmod>2018-01-20T01:55:59.345Z</lastmod>
+    <data>
+        <display>
+        <title>AtomicXFieldUpdater，属性原子修改的外部工具类</title>
+        <pubTime>2018-01-17T16:00:00.000Z</pubTime>
         
         <tag>Java</tag>
          
-        <tag>Collection</tag>
+        <tag>AtomicXFieldUpdater</tag>
          
-        <tag>HashMap</tag>
+        <tag>concurrent</tag>
          
          
            
              
               <breadCrumb title="Java" url="http://www.wangjialong.cc/categories/Java/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>http://www.wangjialong.cc/2018/01/04/sentry_authorize/</loc>
+    <lastmod>2018-01-20T01:55:05.668Z</lastmod>
+    <data>
+        <display>
+        <title>Sentry源码之HiveServer2鉴权过程</title>
+        <pubTime>2018-01-03T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>sentry</tag>
+         
+        <tag>细粒度访问控制</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
           
         </display>
     </data>
@@ -211,30 +259,6 @@
            
              
               <breadCrumb title="运维" url="http://www.wangjialong.cc/categories/%E8%BF%90%E7%BB%B4/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>http://www.wangjialong.cc/2017/09/29/zookeeper1/</loc>
-    <lastmod>2017-11-18T06:04:19.000Z</lastmod>
-    <data>
-        <display>
-        <title>Zookeeper是动物管理员吗</title>
-        <pubTime>2017-09-28T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>zookeeper</tag>
-         
-        <tag>HBase</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
           
         </display>
     </data>
@@ -419,30 +443,6 @@
            
              
               <breadCrumb title="algorithm" url="http://www.wangjialong.cc/categories/algorithm/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>http://www.wangjialong.cc/2017/09/27/etcd&zookeeper/</loc>
-    <lastmod>2017-10-24T12:03:04.000Z</lastmod>
-    <data>
-        <display>
-        <title>zookeeper与etcd的类比</title>
-        <pubTime>2017-09-26T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>zookeeper</tag>
-         
-        <tag>etcd</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="http://www.wangjialong.cc/categories/hadoop/"/>
           
         </display>
     </data>
