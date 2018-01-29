@@ -3,6 +3,125 @@
   
     
     <entry>
+      <title><![CDATA[final和volatile在thread-safe中的作用]]></title>
+      <url>/2018/01/29/finalVsVolatile/</url>
+      <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>final和volatile都是Java中的关键字，对于它们的使用有过一定的了解，但并不能完整掌握，最近在学习中发现了它们在多线程中保证线程安全时的使用，在此进行总结并理清它们的使用范围。</p>
+<a id="more"></a>
+<h1 id="常见用法"><a href="#常见用法" class="headerlink" title="常见用法"></a>常见用法</h1><h2 id="final的常规用法"><a href="#final的常规用法" class="headerlink" title="final的常规用法"></a>final的常规用法</h2><p>final关键字可以用来修饰类、方法、属性，它在各自不同的位置中的含义是不同的。</p>
+<ul>
+<li>修饰类、方法时，表示该类不能被继承，该方法不能被重写(override)。</li>
+<li>修饰属性变量时，表示它为一个常量，一经初始化，便不可进行修改。</li>
+</ul>
+<p>虽然上面分开来两条进行讲述，但其实究其根本，final关键字最根本的含义就是，它所修饰的“对象”（这里并不是指面向对象编程中的对象）都是不能进行“=”操作的，也就是说不能进行赋值操作，它是一个“final decision”，是一个最终的决定。</p>
+<p>怎么理解呢？试想，我们用final来修饰classA，此时classA就不能被继承，是不是可以理解为classA这个“对象”不能进行其他的赋值操作，它已经确定了！那么此时的赋值操作赋的是什么值呢？内存地址。试想任何变量在JVM中都是需要指向一个地址，类的定义也是一样，因此如果类classA在定义是被final修饰，那么该类的地址就不能进行修改以指向另一个地址，如果地址不能修改，那么classA就只能指向JVM最开始加载该类时的地址，因此classA也就不能被继承了。同理，final修饰方法也是一样，该方法的引用地址不能进行修改，因此也就不能进行重写了。final修饰属性、变量时就更是如此了。</p>
+<p>需要注意的是，final在修饰属性、变量时，如果它的类型是一个引用类，此时不能进行赋值指的是不能进行“=”将其指向另一个引用，但是其引用内部的值时可以改变的。如final修饰了 List, 则该list不能进行 = 操作，可以进行 add操作。</p>
+<p>综上，final修饰的不能进行 <strong>“=”</strong> 操作。</p>
+<h2 id="volatile"><a href="#volatile" class="headerlink" title="volatile"></a>volatile</h2><p>volatile其实大家了解的已经够多了，用一句话来解释的话就是“volatile修饰的属性的读、写必须通过主内存”，这句话具体的理解可以通过下图进行。</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/18-1-29/63258372.jpg" alt=""></p>
+<p>如图所示，每个线程都有自己的“local storage”，对于主内存中的变量a的读写，线程都会先从主内存复制a的一份拷贝到线程本地内存中，之后的读写都是在本地内存中执行，因此，多个线程对同一个变量的读写就各自不可见，这就违反了thread-safe。</p>
+<p>volatile通过强制变量的读写都在主内存进行，保证了多线程的thread-safe，如果volatile修饰了变量a，此时线程A和线程B对变量a的读写都是通过主内存进行的，因此，任一线程对a的修改都会对其他线程立即可见，就避免了多线程间变量值不一致的问题。</p>
+<blockquote>
+<p>具体的原理是和内存屏障有关系，感兴趣的同学可以深入了解一下,<a href="http://blog.csdn.net/u014307117/article/details/47746883" target="_blank" rel="external">浅析Java内存模型</a></p>
+</blockquote>
+<p>两个关键字的常用用法已经进行了介绍，看起来似乎volatile才在thread-safe中起作用，那么final的作用是什么呢？</p>
+<h1 id="thread-safe用途"><a href="#thread-safe用途" class="headerlink" title="thread-safe用途"></a>thread-safe用途</h1><h2 id="final关键字"><a href="#final关键字" class="headerlink" title="final关键字"></a>final关键字</h2><p>上面介绍了final的常用用途，一句话概括就是“不可修改引用地址”，由于这个特性，使得final在修饰属性变量时可以达到一定程度的thread-safe。</p>
+<p>假设我们有如下类：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">MultiReadResource</span> </span>&#123;</div><div class="line">    <span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">int</span> id;</div><div class="line">    <span class="keyword">public</span> <span class="keyword">final</span> List list;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="title">MultiReadResource</span><span class="params">(<span class="keyword">int</span> id, List list)</span> </span>&#123;</div><div class="line">        <span class="keyword">this</span>.id = id;</div><div class="line">        <span class="keyword">this</span>.list = list;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>该类是一个多线程读的资源，内部有两个公有属性：id和list，都是由final来进行修饰，它们的赋值通过唯一的构造函数来进行。如果我们在主线程中进行了MultiReadResource的一个对象obj的初始化，在子线程中threadA、threadB并发的读取，因此，如果一旦obj初始化了，则id, list 一定也有值。什么意思？就是说多线程对于obj的访问(access)是不需要任何额外同步措施，就可以原子访问的，线程读取obj要么为null，要么obj引用存在且id、list也存在，这是JVM做的保证。</p>
+<blockquote>
+<p>原子访问的定义： 对于对象的访问要么为空，要么为最终状态，不能访问到中间状态，在此处的含义是，不存在obj的id有值，list为空的状态（除非obj初始化的时候list赋值为null）。</p>
+</blockquote>
+<p>由此可知，如果一个类的属性在初始化后引用不会改变，我们可以简单的将其用final修饰，此时无须任何额外同步操作，JVM可以保证该属性并发访问的thread-safe。</p>
+<h2 id="volatile关键字"><a href="#volatile关键字" class="headerlink" title="volatile关键字"></a>volatile关键字</h2><p>volatile与final相反，它修饰的为需要多线程<strong>修改</strong>的变量，如果一个属性变量被volatile修改，那么这意味着：</p>
+<ul>
+<li>该变量不能进行线程的本地缓存，任何的读写都是直接针对主内存的。</li>
+<li>对该变量的访问看起来就像是原子访问的一样，且读、写都是无锁的。</li>
+</ul>
+<p>什么叫“<em>看起来就像是原子访问</em>”？我们可以借助事务来理解，事务的原子性是很重要的，单机事务中保证原子性的两大手段是：加锁和MVCC（多版本控制）（<a href="http://blog.csdn.net/a60782885/article/details/71698814" target="_blank" rel="external">单机事务拾遗</a>）。对于volatile变量，我们既没有加锁，又没有MVCC，因此，我们的原子访问也只是看起来像是了。具体请看下面的例子，假设我们有下面的类：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SingleField</span> </span>&#123;</div><div class="line">    <span class="keyword">volatile</span> <span class="keyword">int</span> a;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">add</span><span class="params">()</span> </span>&#123;</div><div class="line">        a++;</div><div class="line">    &#125;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">get</span><span class="params">()</span> </span>&#123;</div><div class="line">        <span class="keyword">return</span> a;</div><div class="line">    &#125;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">set</span><span class="params">(<span class="keyword">int</span> t)</span> </span>&#123;</div><div class="line">        <span class="keyword">this</span>.a = t;</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>对于上面定义的类来说，get、set方法都是原子的，但是add并不是，因为add方法具体分解为下面三步<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">add</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="keyword">int</span> temp = a;</div><div class="line">    temp = temp + <span class="number">1</span>;</div><div class="line">    a = temp;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>因此该方法可能存在两个线程调用后，只加了1个的情况，违反了原子性的要求（两个线程调用add，最终a应该+2）。要实现add方法的原子性可以通过两种手段：</p>
+<ul>
+<li>用synchronized修饰add方法，相当于给方法加了锁</li>
+<li>使用Atomic update工具类，具体可以参考<a href="http://www.wangjialong.cc/2018/01/18/atomicXFieldHelper/#more">AtomicXFieldUpdater，属性原子修改的外部工具类</a></li>
+</ul>
+<p>使用AtomicIntegerFieldUpdater后的类定义如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SingleField</span> </span>&#123;</div><div class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> AtomicIntegerFieldUpdater&lt;Record&gt; ADDER =</div><div class="line">      AtomicIntegerFieldUpdater.newUpdater(SingleField.class, <span class="string">"a"</span>);</div><div class="line">    <span class="keyword">volatile</span> <span class="keyword">int</span> a;</div><div class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">add</span><span class="params">()</span> </span>&#123;</div><div class="line">        ADDER.incrementAndGet(<span class="keyword">this</span>);</div><div class="line">    &#125;</div><div class="line">    <span class="comment">// get、set方法省略</span></div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>其本质上是使用了CAS原语。</p>
+<p>synchronized本质上是加锁，其和volatile的使用区别如下：</p>
+<table>
+<thead>
+<tr>
+<th>/</th>
+<th>synchronized</th>
+<th>volatile</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>变量类型</td>
+<td>Object</td>
+<td>Object 或 基本类型（int，long)</td>
+</tr>
+<tr>
+<td>允许null?</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>是否阻塞？</td>
+<td>yes</td>
+<td>no</td>
+</tr>
+<tr>
+<td>任何缓存变量访问同步?</td>
+<td>yes</td>
+<td>jdk5之后</td>
+</tr>
+<tr>
+<td>同步何时发生？</td>
+<td>进入/退出 synchronized 语法块</td>
+<td>volatile变量被访问时</td>
+</tr>
+<tr>
+<td>能够支持多步的原子操作（上面的add方法）</td>
+<td>yes</td>
+<td>jdk5之后可以通过Atomic 的 get、set来完成</td>
+</tr>
+</tbody>
+</table>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>final和volatile都在多线程中有着自己的适用范围，我的简单的理解是：final可以用于常量（初始化之后，引用不被修改），volatile可以用于多个线程的并发读写。当然，这两个修饰符只能保证最低级别的线程安全，在高并发中，我们需要更多的手段（如锁、CAS）来处理复杂的场景。</p>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><ul>
+<li><a href="https://javamex.com/tutorials/synchronization_volatile.shtml" target="_blank" rel="external">The volatile keyword in Java</a></li>
+<li><a href="https://javamex.com/tutorials/synchronization_final.shtml" target="_blank" rel="external">Thread-safety with the Java final keyword</a></li>
+<li><a href="http://blog.csdn.net/u014307117/article/details/47746883" target="_blank" rel="external">浅析Java内存模型</a></li>
+<li><a href="http://blog.csdn.net/suifeng3051/article/details/52611310" target="_blank" rel="external">全面理解Java内存模型</a></li>
+<li><a href="https://segmentfault.com/a/1190000004487149" target="_blank" rel="external">如何使用 volatile, synchronized, final 进行线程间通信</a></li>
+<li><a href="https://www.zhihu.com/question/33515481" target="_blank" rel="external">并发与并行的区别</a></li>
+<li><a href="http://blog.csdn.net/a60782885/article/details/71698814" target="_blank" rel="external">单机事务拾遗</a></li>
+<li><a href="https://www.imooc.com/learn/272" target="_blank" rel="external">视频课程：单机事务到分布式事务</a></li>
+</ul>
+]]></content>
+      
+        <categories>
+            
+            <category> Java </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> Java </tag>
+            
+            <tag> final </tag>
+            
+            <tag> volatile </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[AtomicXFieldUpdater，属性原子修改的外部工具类]]></title>
       <url>/2018/01/18/atomicXFieldHelper/</url>
       <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近在看资料的时候偶然间看到了AtomicLongFieldUpdater这个工具类，觉得新鲜就查阅了相关的资料，发现居然是jdk1.5就有的工具类，不禁感叹自己对Java的理解还是太浅了，于是在此整理一下该类的资料，作为知识储备。本篇博客原文地址<a href="http://www.wangjialong.cc/2018/01/18/atomicXFieldHelper/#more">AtomicXFieldUpdater，属性原子修改的外部工具类</a></p>
@@ -2088,29 +2207,6 @@
     </entry>
     
     <entry>
-      <title><![CDATA[我的第一篇博客]]></title>
-      <url>/2017/09/14/hello-world/</url>
-      <content type="html"><![CDATA[<p>很早之前就在github上申请了github pages，想着搭建一个属于自己的博客，但因为人懒，很多笔记都记在了有道云笔记上，没有整理成博客的好习惯。用有道云笔记虽然也可以起到一定的总结作用，但是毕竟只是给自己看的，所以并没有很用心，<br>所以写成的东西也只是用到的时候，自己再翻出了笔记回忆一下，没有起到温故知新的作用。<br><a id="more"></a></p>
-<p>最近看到一个学长的博客，感触良多，觉得养成一个总结知识，整理成博客的好习惯是多么的重要，一方面是对自己学习的督促，另一方面，也是与他人学习交流的好途径，因此，得空用hexo搭建了这个博客。因为是穷学生，用不起长期的电脑，就用很早之前的github pages托管了，而且我要整理的内容也不多，这个方案完全可以满足我的需求。</p>
-<p>有了平台之后，接下来就是好习惯的培养了。近期的计划是先将之前的一些笔记整理上来，之后再陆续把学习生活中的心得记录到此，希望自己可以养成一个好习惯吧。 (*￣︶￣)</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 随想 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 随想 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
       <title><![CDATA[Green Blue Deployment]]></title>
       <url>/2017/09/14/greenBlueDeploy/</url>
       <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
@@ -2130,6 +2226,29 @@
             <tag> 运维 </tag>
             
             <tag> 部署 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[我的第一篇博客]]></title>
+      <url>/2017/09/14/hello-world/</url>
+      <content type="html"><![CDATA[<p>很早之前就在github上申请了github pages，想着搭建一个属于自己的博客，但因为人懒，很多笔记都记在了有道云笔记上，没有整理成博客的好习惯。用有道云笔记虽然也可以起到一定的总结作用，但是毕竟只是给自己看的，所以并没有很用心，<br>所以写成的东西也只是用到的时候，自己再翻出了笔记回忆一下，没有起到温故知新的作用。<br><a id="more"></a></p>
+<p>最近看到一个学长的博客，感触良多，觉得养成一个总结知识，整理成博客的好习惯是多么的重要，一方面是对自己学习的督促，另一方面，也是与他人学习交流的好途径，因此，得空用hexo搭建了这个博客。因为是穷学生，用不起长期的电脑，就用很早之前的github pages托管了，而且我要整理的内容也不多，这个方案完全可以满足我的需求。</p>
+<p>有了平台之后，接下来就是好习惯的培养了。近期的计划是先将之前的一些笔记整理上来，之后再陆续把学习生活中的心得记录到此，希望自己可以养成一个好习惯吧。 (*￣︶￣)</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 随想 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 随想 </tag>
             
         </tags>
         

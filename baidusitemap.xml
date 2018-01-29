@@ -4,6 +4,30 @@
 
     
   <url>
+    <loc>http://www.wangjialong.cc/2018/01/29/finalVsVolatile/</loc>
+    <lastmod>2018-01-29T03:18:04.783Z</lastmod>
+    <data>
+        <display>
+        <title>final和volatile在thread-safe中的作用</title>
+        <pubTime>2018-01-28T16:00:00.000Z</pubTime>
+        
+        <tag>Java</tag>
+         
+        <tag>final</tag>
+         
+        <tag>volatile</tag>
+         
+         
+           
+             
+              <breadCrumb title="Java" url="http://www.wangjialong.cc/categories/Java/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>http://www.wangjialong.cc/2017/09/27/etcd&zookeeper/</loc>
     <lastmod>2018-01-20T02:06:03.080Z</lastmod>
     <data>
