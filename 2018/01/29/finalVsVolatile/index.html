@@ -81,19 +81,19 @@
 
 
 
-<meta name="description" content="前言final和volatile都是Java中的关键字，对于它们的使用有过一定的了解，但并不能完整掌握，最近在学习中发现了它们在多线程中保证线程安全时的使用，在此进行总结并理清它们的使用范围。">
+<meta name="description" content="前言final和volatile都是Java中的关键字，对于它们的使用有过一定的了解，但并不能完整掌握，最近在学习中发现了它们在多线程中保证线程安全时的使用，在此进行总结并理清它们的使用范围。博客原文地址final和volatile在thread-safe中的作用">
 <meta name="keywords" content="Java,final,volatile">
 <meta property="og:type" content="article">
 <meta property="og:title" content="final和volatile在thread-safe中的作用">
 <meta property="og:url" content="http://www.wangjialong.cc/2018/01/29/finalVsVolatile/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="前言final和volatile都是Java中的关键字，对于它们的使用有过一定的了解，但并不能完整掌握，最近在学习中发现了它们在多线程中保证线程安全时的使用，在此进行总结并理清它们的使用范围。">
+<meta property="og:description" content="前言final和volatile都是Java中的关键字，对于它们的使用有过一定的了解，但并不能完整掌握，最近在学习中发现了它们在多线程中保证线程安全时的使用，在此进行总结并理清它们的使用范围。博客原文地址final和volatile在thread-safe中的作用">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-29/63258372.jpg">
-<meta property="og:updated_time" content="2018-01-29T03:18:04.783Z">
+<meta property="og:updated_time" content="2018-01-29T03:22:35.214Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="final和volatile在thread-safe中的作用">
-<meta name="twitter:description" content="前言final和volatile都是Java中的关键字，对于它们的使用有过一定的了解，但并不能完整掌握，最近在学习中发现了它们在多线程中保证线程安全时的使用，在此进行总结并理清它们的使用范围。">
+<meta name="twitter:description" content="前言final和volatile都是Java中的关键字，对于它们的使用有过一定的了解，但并不能完整掌握，最近在学习中发现了它们在多线程中保证线程安全时的使用，在此进行总结并理清它们的使用范围。博客原文地址final和volatile在thread-safe中的作用">
 <meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/18-1-29/63258372.jpg">
 
 
@@ -360,7 +360,7 @@
       
 
       
-        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>final和volatile都是Java中的关键字，对于它们的使用有过一定的了解，但并不能完整掌握，最近在学习中发现了它们在多线程中保证线程安全时的使用，在此进行总结并理清它们的使用范围。</p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>final和volatile都是Java中的关键字，对于它们的使用有过一定的了解，但并不能完整掌握，最近在学习中发现了它们在多线程中保证线程安全时的使用，在此进行总结并理清它们的使用范围。博客原文地址<a href="http://www.wangjialong.cc/2018/01/29/finalVsVolatile/#more">final和volatile在thread-safe中的作用</a></p>
 <a id="more"></a>
 <h1 id="常见用法"><a href="#常见用法" class="headerlink" title="常见用法"></a>常见用法</h1><h2 id="final的常规用法"><a href="#final的常规用法" class="headerlink" title="final的常规用法"></a>final的常规用法</h2><p>final关键字可以用来修饰类、方法、属性，它在各自不同的位置中的含义是不同的。</p>
 <ul>
