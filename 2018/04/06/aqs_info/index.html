@@ -90,7 +90,7 @@
 <meta property="og:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。原文地址：http://www.">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-6/46576757.jpg">
-<meta property="og:updated_time" content="2018-04-06T04:12:59.539Z">
+<meta property="og:updated_time" content="2018-04-06T04:13:54.748Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="AQS（AbstractQueuedSynchronizer）源码解析">
 <meta name="twitter:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。原文地址：http://www.">
@@ -363,7 +363,52 @@
         <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。<br>原文地址：<a href="http://www.wangjialong.cc/2018/04/06/aqs_info/#more">http://www.wangjialong.cc/2018/04/06/aqs_info/#more</a></p>
 <a id="more"></a>
 <h1 id="AQS简介"><a href="#AQS简介" class="headerlink" title="AQS简介"></a>AQS简介</h1><p>AQS是一个抽象类，不可以被实例化，它的设计之初就是为了让子类通过继承来实现多样的功能的。它内部提供了一个FIFO的等待队列，用于多个线程等待一个事件（锁）。它有一个重要的状态标志——state，该属性是一个int值，表示对象的当前状态（如0表示lock，1表示unlock）。AQS提供了三个protected final的方法来改变state的值，分别是：getState、setState(int)、compareAndSetState(int, int)。根据修饰符，它们是不可以被子类重写的，但可以在子类中进行调用，这也就意味着子类可以根据自己的逻辑来决定如何使用state值。</p>
-<p> java的修饰符作用域如下：<br> | /  | 同一类中 | 同一包中 | 同包内的子类 | 不同包内的子类 | 全局 |<br> | :—: | :—: | :—: | :—: | :—: | :—: |<br> | public | + | +| +| +| + |<br> | protected | +| +| +| + | |<br> | default（无修饰符） | +| +| +|  | |<br> | private | +| | |  | |</p>
+<p> java的修饰符作用域如下：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:center">/</th>
+<th style="text-align:center">同一类中</th>
+<th style="text-align:center">同一包中</th>
+<th style="text-align:center">同包内的子类</th>
+<th style="text-align:center">不同包内的子类</th>
+<th style="text-align:center">全局</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center">public</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center">+</td>
+</tr>
+<tr>
+<td style="text-align:center">protected</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center"></td>
+</tr>
+<tr>
+<td style="text-align:center">default（无修饰符）</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+</tr>
+<tr>
+<td style="text-align:center">private</td>
+<td style="text-align:center">+</td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+<td style="text-align:center"></td>
+</tr>
+</tbody>
+</table>
 <p> 表中 + 表示可以访问， 空白表示无法访问</p>
 <p>AQS的子类应当被定义为内部类，作为内部的helper对象。事实上，这也是juc种锁的做法，如ReentrantLock，便是通过内部的Sync对象来继承AQS的。AQS中定义了一些未实现的方法（抛出UnsupportedOperationException异常）</p>
 <ul>
