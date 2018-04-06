@@ -81,19 +81,19 @@
 
 
 
-<meta name="description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。">
+<meta name="description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。原文地址：http://www.">
 <meta name="keywords" content="java,juc,AQS,Lock">
 <meta property="og:type" content="article">
 <meta property="og:title" content="AQS（AbstractQueuedSynchronizer）源码解析">
 <meta property="og:url" content="http://www.wangjialong.cc/2018/04/06/aqs_info/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。">
+<meta property="og:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。原文地址：http://www.">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-6/46576757.jpg">
-<meta property="og:updated_time" content="2018-04-06T03:54:08.362Z">
+<meta property="og:updated_time" content="2018-04-06T04:06:19.055Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="AQS（AbstractQueuedSynchronizer）源码解析">
-<meta name="twitter:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。">
+<meta name="twitter:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。原文地址：http://www.">
 <meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-6/46576757.jpg">
 
 
@@ -360,12 +360,10 @@
       
 
       
-        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。</p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。<br>原文地址：<a href="http://www.wangjialong.cc/2018/04/06/aqs_info/#more">http://www.wangjialong.cc/2018/04/06/aqs_info/#more</a></p>
 <a id="more"></a>
 <h1 id="AQS简介"><a href="#AQS简介" class="headerlink" title="AQS简介"></a>AQS简介</h1><p>AQS是一个抽象类，不可以被实例化，它的设计之初就是为了让子类通过继承来实现多样的功能的。它内部提供了一个FIFO的等待队列，用于多个线程等待一个事件（锁）。它有一个重要的状态标志——state，该属性是一个int值，表示对象的当前状态（如0表示lock，1表示unlock）。AQS提供了三个protected final的方法来改变state的值，分别是：getState、setState(int)、compareAndSetState(int, int)。根据修饰符，它们是不可以被子类重写的，但可以在子类中进行调用，这也就意味着子类可以根据自己的逻辑来决定如何使用state值。</p>
-<blockquote>
-<p>java的修饰符作用域如下：<br>/ | 同一类中 | 同一包中 | 同包内的子类 | 不同包内的子类 | 全局<br>—|—|—|—|—|—<br>public | + | +| +| +| +<br>protected | +| +| +| + |<br>default（无修饰符） | +| +| +|  |<br>private | +| | |  |<br>表中 + 表示可以访问， 空白表示无法访问</p>
-</blockquote>
+<p> java的修饰符作用域如下：<br> / | 同一类中 | 同一包中 | 同包内的子类 | 不同包内的子类 | 全局<br> —|—|—|—|—|—<br> public | + | +| +| +| +<br> protected | +| +| +| + |<br> default（无修饰符） | +| +| +|  |<br> private | +| | |  |<br> 表中 + 表示可以访问， 空白表示无法访问</p>
 <p>AQS的子类应当被定义为内部类，作为内部的helper对象。事实上，这也是juc种锁的做法，如ReentrantLock，便是通过内部的Sync对象来继承AQS的。AQS中定义了一些未实现的方法（抛出UnsupportedOperationException异常）</p>
 <ul>
 <li>tryAcquire(int)       尝试获取state</li>
@@ -393,12 +391,7 @@
 <li>实现Condition模型</li>
 </ol>
 <h1 id="源码解析"><a href="#源码解析" class="headerlink" title="源码解析"></a>源码解析</h1><h2 id="Node解析"><a href="#Node解析" class="headerlink" title="Node解析"></a>Node解析</h2><p>AQS内部定义了一个static final的内部类Node，用于实现等待队列CLH，满足FIFO结构，其队列结构如下所示：</p>
-<pre>
-          +------+  prev +-----+       +-----+
-     head |      | <---- |="" <----="" tail="" ----=""> |     | ----> |     |
-          +------+  next +-----+       +-----+
-</----></pre>
-
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">     +------+  prev +-----+       +-----+</div><div class="line">head |      | &lt;---- |     | &lt;---- |     |  tail</div><div class="line">     |      | ----&gt; |     | ----&gt; |     |</div><div class="line">     +------+  next +-----+       +-----+</div></pre></td></tr></table></figure>
 <p>队列为一个双向链表结构，保存了head、tail两个指针，分别指向链表头部、尾部。当需要添加节点时，直接在tail位置添加，而dequeue操作直接对head节点进行。Node中定义如下常量：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line"><span class="comment">/** Marker to indicate a node is waiting in shared mode */</span></div><div class="line"><span class="keyword">static</span> <span class="keyword">final</span> Node SHARED = <span class="keyword">new</span> Node();</div><div class="line"></div><div class="line"><span class="comment">/** Marker to indicate a node is waiting in exclusive mode */</span></div><div class="line"><span class="keyword">static</span> <span class="keyword">final</span> Node EXCLUSIVE = <span class="keyword">null</span>;</div><div class="line"></div><div class="line"><span class="comment">/** waitStatus value to indicate thread has cancelled */</span></div><div class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> CANCELLED =  <span class="number">1</span>;</div><div class="line"><span class="comment">/** waitStatus value to indicate successor's thread needs unparking */</span></div><div class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> SIGNAL    = -<span class="number">1</span>;</div><div class="line"><span class="comment">/** waitStatus value to indicate thread is waiting on condition */</span></div><div class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> CONDITION = -<span class="number">2</span>;</div><div class="line"></div><div class="line"><span class="comment">/**</span></div><div class="line"><span class="comment">* waitStatus value to indicate the next acquireShared should</span></div><div class="line"><span class="comment">* unconditionally propagate</span></div><div class="line"><span class="comment">*/</span></div><div class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">int</span> PROPAGATE = -<span class="number">3</span>;</div></pre></td></tr></table></figure></p>
 <p>以上常量分别用于设置如下属性的值：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">volatile</span> <span class="keyword">int</span> waitStatus;</div><div class="line"><span class="keyword">volatile</span> Node prev;</div><div class="line"><span class="keyword">volatile</span> Node next;</div><div class="line"><span class="keyword">volatile</span> Thread thread;</div><div class="line">Node nextWaiter;</div></pre></td></tr></table></figure></p>
 <p>Node类型的常量SHARED、EXCLUSIVE用于设置nextWaiter，用于表示当前节点是共享的，还是互斥的，分别用于共享锁和独占锁。int类型的常量CANCELLED、SIGNAL、CONDITION、PROPAGATE用于设置waitStatus，用于在ConditionObject中使用，可以实现await/signal模型。</p>
