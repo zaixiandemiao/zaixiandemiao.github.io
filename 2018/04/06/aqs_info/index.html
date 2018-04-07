@@ -81,19 +81,19 @@
 
 
 
-<meta name="description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。原文地址：http://www.">
+<meta name="description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。 AQS简介AQS是一个抽象类，">
 <meta name="keywords" content="java,juc,AQS,Lock">
 <meta property="og:type" content="article">
 <meta property="og:title" content="AQS（AbstractQueuedSynchronizer）源码解析">
 <meta property="og:url" content="http://www.wangjialong.cc/2018/04/06/aqs_info/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。原文地址：http://www.">
+<meta property="og:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。 AQS简介AQS是一个抽象类，">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-6/46576757.jpg">
-<meta property="og:updated_time" content="2018-04-06T04:13:54.748Z">
+<meta property="og:updated_time" content="2018-04-07T02:08:26.677Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="AQS（AbstractQueuedSynchronizer）源码解析">
-<meta name="twitter:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。原文地址：http://www.">
+<meta name="twitter:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。 AQS简介AQS是一个抽象类，">
 <meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-6/46576757.jpg">
 
 
@@ -360,56 +360,58 @@
       
 
       
-        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。<br>原文地址：<a href="http://www.wangjialong.cc/2018/04/06/aqs_info/#more">http://www.wangjialong.cc/2018/04/06/aqs_info/#more</a></p>
-<a id="more"></a>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。</p>
 <h1 id="AQS简介"><a href="#AQS简介" class="headerlink" title="AQS简介"></a>AQS简介</h1><p>AQS是一个抽象类，不可以被实例化，它的设计之初就是为了让子类通过继承来实现多样的功能的。它内部提供了一个FIFO的等待队列，用于多个线程等待一个事件（锁）。它有一个重要的状态标志——state，该属性是一个int值，表示对象的当前状态（如0表示lock，1表示unlock）。AQS提供了三个protected final的方法来改变state的值，分别是：getState、setState(int)、compareAndSetState(int, int)。根据修饰符，它们是不可以被子类重写的，但可以在子类中进行调用，这也就意味着子类可以根据自己的逻辑来决定如何使用state值。</p>
-<p> java的修饰符作用域如下：</p>
+<blockquote>
+<p>java的修饰符作用域如下：</p>
 <table>
 <thead>
 <tr>
-<th style="text-align:center">/</th>
-<th style="text-align:center">同一类中</th>
-<th style="text-align:center">同一包中</th>
-<th style="text-align:center">同包内的子类</th>
-<th style="text-align:center">不同包内的子类</th>
-<th style="text-align:center">全局</th>
+<th>/</th>
+<th>同一类中</th>
+<th>同一包中</th>
+<th>同包内的子类</th>
+<th>不同包内的子类</th>
+<th>全局</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align:center">public</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center">+</td>
+<td>public</td>
+<td>+</td>
+<td>+</td>
+<td>+</td>
+<td>+</td>
+<td>+</td>
 </tr>
 <tr>
-<td style="text-align:center">protected</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center"></td>
+<td>protected</td>
+<td>+</td>
+<td>+</td>
+<td>+</td>
+<td>+</td>
+<td></td>
 </tr>
 <tr>
-<td style="text-align:center">default（无修饰符）</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center"></td>
-<td style="text-align:center"></td>
+<td>default（无修饰符）</td>
+<td>+</td>
+<td>+</td>
+<td>+</td>
+<td></td>
+<td></td>
 </tr>
 <tr>
-<td style="text-align:center">private</td>
-<td style="text-align:center">+</td>
-<td style="text-align:center"></td>
-<td style="text-align:center"></td>
-<td style="text-align:center"></td>
+<td>private</td>
+<td>+</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
 </tr>
 </tbody>
 </table>
-<p> 表中 + 表示可以访问， 空白表示无法访问</p>
+<p>表中 + 表示可以访问， 空白表示无法访问</p>
+</blockquote>
 <p>AQS的子类应当被定义为内部类，作为内部的helper对象。事实上，这也是juc种锁的做法，如ReentrantLock，便是通过内部的Sync对象来继承AQS的。AQS中定义了一些未实现的方法（抛出UnsupportedOperationException异常）</p>
 <ul>
 <li>tryAcquire(int)       尝试获取state</li>
@@ -457,11 +459,20 @@
 <h3 id="acquire"><a href="#acquire" class="headerlink" title="acquire"></a>acquire</h3><p>acquire是独占锁的获取锁的方法，其源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">acquire</span><span class="params">(<span class="keyword">int</span> arg)</span> </span>&#123;</div><div class="line">    <span class="keyword">if</span> (!tryAcquire(arg) &amp;&amp;</div><div class="line">        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))</div><div class="line">        selfInterrupt();</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>acquire方法非常简单，如果tryAcquire失败（返回false），则调用acquireQueued方法，将当前线程加入到等待队列中，并中断当前线程，等待唤醒。</p>
 <p>tryAcquire由子类实现，下面先分析acquireQueued方法。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">acquireQueued</span><span class="params">(<span class="keyword">final</span> Node node, <span class="keyword">int</span> arg)</span> </span>&#123;</div><div class="line">    <span class="keyword">boolean</span> failed = <span class="keyword">true</span>;</div><div class="line">    <span class="keyword">try</span> &#123;</div><div class="line">        <span class="keyword">boolean</span> interrupted = <span class="keyword">false</span>;</div><div class="line">        <span class="keyword">for</span> (;;) &#123;</div><div class="line">            <span class="keyword">final</span> Node p = node.predecessor();</div><div class="line">            <span class="comment">//若当前节点为链表第一个节点</span></div><div class="line">            <span class="keyword">if</span> (p == head &amp;&amp; tryAcquire(arg)) &#123;</div><div class="line">                setHead(node);</div><div class="line">                p.next = <span class="keyword">null</span>; <span class="comment">// help GC</span></div><div class="line">                failed = <span class="keyword">false</span>;</div><div class="line">                <span class="keyword">return</span> interrupted;</div><div class="line">            &#125;</div><div class="line">            <span class="comment">//park当前线程</span></div><div class="line">            <span class="keyword">if</span> (shouldParkAfterFailedAcquire(p, node) &amp;&amp;</div><div class="line">                parkAndCheckInterrupt())</div><div class="line">                interrupted = <span class="keyword">true</span>;</div><div class="line">        &#125;</div><div class="line">    &#125; <span class="keyword">finally</span> &#123;</div><div class="line">        <span class="keyword">if</span> (failed)</div><div class="line">            cancelAcquire(node);</div><div class="line">    &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>acquireQueued在addWaiter之后，再次尝试获取锁，与tryAcquire不同的是，返回true表示未获取成功，false表示获取成功。通过判断当前节点是否为队列第一个节点，来决定是否获取成功，acquireQueued方法相当于提供了一个默认方法，会被子类的tryAcquire方法屏蔽掉（若tryAcquire返回true的话）。</p>
+<p>acquireQueued在addWaiter之后，再次尝试获取锁，与tryAcquire不同的是，返回值代表的是当前线程在等待时是否可中断，通过返回interrupted，true表示可中断，false表示不可中断。通过判断当前节点是否为队列第一个节点，来决定是否获取成功，acquireQueued方法相当于提供了一个默认方法，会被子类的tryAcquire方法屏蔽掉（若tryAcquire返回true的话）。acquireQueued使用了死循环来判断当前节点前一节点是否为head，是，则获取到锁。但这个方法真的是死循环吗？其实不是的，trick就在shouldParkAfterFailedAcquire方法中，其源码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">boolean</span> <span class="title">shouldParkAfterFailedAcquire</span><span class="params">(Node pred, Node node)</span> </span>&#123;</div><div class="line">    <span class="keyword">int</span> ws = pred.waitStatus;</div><div class="line">    <span class="keyword">if</span> (ws == Node.SIGNAL)</div><div class="line">        <span class="comment">/*</span></div><div class="line"><span class="comment">         * This node has already set status asking a release</span></div><div class="line"><span class="comment">         * to signal it, so it can safely park.</span></div><div class="line"><span class="comment">         */</span></div><div class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">    <span class="keyword">if</span> (ws &gt; <span class="number">0</span>) &#123;</div><div class="line">        <span class="comment">/*</span></div><div class="line"><span class="comment">         * Predecessor was cancelled. Skip over predecessors and</span></div><div class="line"><span class="comment">         * indicate retry.</span></div><div class="line"><span class="comment">         */</span></div><div class="line">        <span class="keyword">do</span> &#123;</div><div class="line">            node.prev = pred = pred.prev;</div><div class="line">        &#125; <span class="keyword">while</span> (pred.waitStatus &gt; <span class="number">0</span>);</div><div class="line">        pred.next = node;</div><div class="line">    &#125; <span class="keyword">else</span> &#123;</div><div class="line">        <span class="comment">/*</span></div><div class="line"><span class="comment">         * waitStatus must be 0 or PROPAGATE.  Indicate that we</span></div><div class="line"><span class="comment">         * need a signal, but don't park yet.  Caller will need to</span></div><div class="line"><span class="comment">         * retry to make sure it cannot acquire before parking.</span></div><div class="line"><span class="comment">         */</span></div><div class="line">        compareAndSetWaitStatus(pred, ws, Node.SIGNAL);</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>由于在锁的使用情景内，Node的waitStatus初始必定是0，因此获取锁的时候shouldParkAfterFailedAcquire方法首次进入，前一节点的waitStatus必定为0，执行compareAndSet将其设置为Node.SIGNAL(-1),再次调用shouldParkAfterFailedAcquire时，必定返回true。因此acquireQueued方法并不是死循环，而是在调用两次shouldParkAfterFailedAcquire方法之后（第一次将waitStatus设为-1，第二次返回true），执行了parkAndCheckInterrupt方法，挂起了当前线程。parkAndCheckInterrupt内调用了LockSupport.park(this)，查阅API可知，park方法挂起当前线程，并在以下三种情况下立即返回。</p>
+<ul>
+<li>其他线程调用unpark，唤醒了当前线程</li>
+<li>其他线程调用了interrupt，中断了当前线程</li>
+<li>方法虚假返回（for no reason）</li>
+</ul>
+<p>在AQS中，常见的为调用unpark(其他线程执行release释放锁时)唤醒了当前线程。当前线程唤醒之后，继续调用acquireQueue中的for循环，判断是否可以获取锁。</p>
 <p>tryAcquire会调用子类Mutex.Sync的实现，其代码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 如果state为0，则获取到锁</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">tryAcquire</span><span class="params">(<span class="keyword">int</span> acquires)</span> </span>&#123;</div><div class="line">   <span class="keyword">assert</span> acquires == <span class="number">1</span>; <span class="comment">// Otherwise unused</span></div><div class="line">   <span class="keyword">if</span> (compareAndSetState(<span class="number">0</span>, <span class="number">1</span>)) &#123;</div><div class="line">     setExclusiveOwnerThread(Thread.currentThread());</div><div class="line">     <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">   &#125;</div><div class="line">   <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>由此可见,AQS提供了一个模板，子类需要实现其tryAcquire方法，实现具体的获取锁逻辑（通过对state的读、写），子类lock方法直接调用AQS的acquire方法即可。</p>
 <h3 id="release方法"><a href="#release方法" class="headerlink" title="release方法"></a>release方法</h3><p>Mutex的unlock方法调用了release方法，在AQS中定义，源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">release</span><span class="params">(<span class="keyword">int</span> arg)</span> </span>&#123;</div><div class="line">    <span class="keyword">if</span> (tryRelease(arg)) &#123;</div><div class="line">        Node h = head;</div><div class="line">        <span class="keyword">if</span> (h != <span class="keyword">null</span> &amp;&amp; h.waitStatus != <span class="number">0</span>)</div><div class="line">            unparkSuccessor(h);</div><div class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>还是同样的配方，release方法调用子类实现的tryRelease，返回true后，表示获取成功，之后判断头节点，由于锁的实现中，waitStatus必定为0，所以不会执行unpark操作，unpark用于Condition模型中。tryRelease方法的源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 将state设置为0，解锁</span></div><div class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">tryRelease</span><span class="params">(<span class="keyword">int</span> releases)</span> </span>&#123;</div><div class="line">   <span class="keyword">assert</span> releases == <span class="number">1</span>; <span class="comment">// Otherwise unused</span></div><div class="line">   <span class="keyword">if</span> (getState() == <span class="number">0</span>) <span class="keyword">throw</span> <span class="keyword">new</span> IllegalMonitorStateException();</div><div class="line">   setExclusiveOwnerThread(<span class="keyword">null</span>);</div><div class="line">   setState(<span class="number">0</span>);</div><div class="line">   <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
+<p>还是同样的配方，release方法调用子类实现的tryRelease，返回true后，表示获取成功，之后判断头节点，由于锁的实现中，waitStatus必定为0或者-1，而当一个线程lock成功后，waitStatus必定为-1，所以执行unparkSuccessor方法，该方法首先将head节点的waitStatus设为0，之后判断head下一节点是否为空，若不为空且waitStatus不大于0（大于0表示线程被取消），则调用LockSupport.unpark唤醒下一节点对应的线程；若为空或线程被取消，从tail节点开始遍历队列，找到队列中距离head节点最近的、未被cancel（waitStatus小于0）的节点，调用LockSupport.unpark唤醒它。</p>
+<p>tryRelease方法的源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 将state设置为0，解锁</span></div><div class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">tryRelease</span><span class="params">(<span class="keyword">int</span> releases)</span> </span>&#123;</div><div class="line">   <span class="keyword">assert</span> releases == <span class="number">1</span>; <span class="comment">// Otherwise unused</span></div><div class="line">   <span class="keyword">if</span> (getState() == <span class="number">0</span>) <span class="keyword">throw</span> <span class="keyword">new</span> IllegalMonitorStateException();</div><div class="line">   setExclusiveOwnerThread(<span class="keyword">null</span>);</div><div class="line">   setState(<span class="number">0</span>);</div><div class="line">   <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
 <p>由源码可知，tryRelease只需要将state设置为0即可，因为调用unlock方法的必定是之前调用lock成功的，因此当前state必定为1，为安全起见，使用getState判断是否为0，若为0，说明线程出错。state设置时，不需要调用CAS方法，只需要setState即可，保证write对于其他线程可见即可（通过volatile内存屏障保证）。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>AQS提供了一个框架，在其上可以构建丰富的线程同步工具类，JUC包中ReadWriteLock、CountDownLatch都是基于AQS实现的，AQS在JUC包中的地位相当重要。其类图如下：</p>
 <p><img src="http://ow9czedj7.bkt.clouddn.com/18-4-6/46576757.jpg" alt=""></p>
