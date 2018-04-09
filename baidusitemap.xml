@@ -5,7 +5,7 @@
     
   <url>
     <loc>http://www.wangjialong.cc/2018/04/06/aqs_info/</loc>
-    <lastmod>2018-04-07T02:11:01.219Z</lastmod>
+    <lastmod>2018-04-09T08:46:21.443Z</lastmod>
     <data>
         <display>
         <title>AQS（AbstractQueuedSynchronizer）源码解析</title>
@@ -63,9 +63,9 @@
         
         <tag>hadoop</tag>
          
-        <tag>zookeeper</tag>
-         
         <tag>etcd</tag>
+         
+        <tag>zookeeper</tag>
          
          
            
@@ -393,9 +393,9 @@
         <title>Etcd集群安装</title>
         <pubTime>2017-10-30T16:00:00.000Z</pubTime>
         
-        <tag>etcd</tag>
-         
         <tag>kubernetes</tag>
+         
+        <tag>etcd</tag>
          
          
            

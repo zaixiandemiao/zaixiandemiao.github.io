@@ -117,7 +117,9 @@
 <p>tryAcquire会调用子类Mutex.Sync的实现，其代码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 如果state为0，则获取到锁</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">tryAcquire</span><span class="params">(<span class="keyword">int</span> acquires)</span> </span>&#123;</div><div class="line">   <span class="keyword">assert</span> acquires == <span class="number">1</span>; <span class="comment">// Otherwise unused</span></div><div class="line">   <span class="keyword">if</span> (compareAndSetState(<span class="number">0</span>, <span class="number">1</span>)) &#123;</div><div class="line">     setExclusiveOwnerThread(Thread.currentThread());</div><div class="line">     <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">   &#125;</div><div class="line">   <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <p>由此可见,AQS提供了一个模板，子类需要实现其tryAcquire方法，实现具体的获取锁逻辑（通过对state的读、写），子类lock方法直接调用AQS的acquire方法即可。</p>
 <h3 id="release方法"><a href="#release方法" class="headerlink" title="release方法"></a>release方法</h3><p>Mutex的unlock方法调用了release方法，在AQS中定义，源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">boolean</span> <span class="title">release</span><span class="params">(<span class="keyword">int</span> arg)</span> </span>&#123;</div><div class="line">    <span class="keyword">if</span> (tryRelease(arg)) &#123;</div><div class="line">        Node h = head;</div><div class="line">        <span class="keyword">if</span> (h != <span class="keyword">null</span> &amp;&amp; h.waitStatus != <span class="number">0</span>)</div><div class="line">            unparkSuccessor(h);</div><div class="line">        <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>还是同样的配方，release方法调用子类实现的tryRelease，返回true后，表示获取成功，之后判断头节点，由于锁的实现中，waitStatus必定为0或者-1，而当一个线程lock成功后，waitStatus必定为-1，所以执行unparkSuccessor方法，该方法首先将head节点的waitStatus设为0，之后判断head下一节点是否为空，若不为空且waitStatus不大于0（大于0表示线程被取消），则调用LockSupport.unpark唤醒下一节点对应的线程；若为空或线程被取消，从tail节点开始遍历队列，找到队列中距离head节点最近的、未被cancel（waitStatus小于0）的节点，调用LockSupport.unpark唤醒它。</p>
+<p>还是同样的配方，release方法调用子类实现的tryRelease，返回true后，表示获取成功，之后判断头节点，由于锁的实现中，waitStatus必定为0或者-1，而当一个线程lock成功后，waitStatus必定为-1，所以执行unparkSuccessor方法，该方法首先将head节点的waitStatus设为0，之后判断head下一节点是否为空，若不为空且waitStatus不大于0（大于0表示线程被取消），则调用LockSupport.unpark唤醒下一节点对应的线程；若为空或线程被取消，从tail节点开始遍历队列，找到队列中距离head节点最近的、未被cancel（waitStatus小于0）的节点，调用LockSupport.unpark唤醒它。源码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">unparkSuccessor</span><span class="params">(Node node)</span> </span>&#123;</div><div class="line">    <span class="comment">/*</span></div><div class="line"><span class="comment">     * If status is negative (i.e., possibly needing signal) try</span></div><div class="line"><span class="comment">     * to clear in anticipation of signalling.  It is OK if this</span></div><div class="line"><span class="comment">     * fails or if status is changed by waiting thread.</span></div><div class="line"><span class="comment">     */</span></div><div class="line">    <span class="keyword">int</span> ws = node.waitStatus;</div><div class="line">    <span class="keyword">if</span> (ws &lt; <span class="number">0</span>)</div><div class="line">        compareAndSetWaitStatus(node, ws, <span class="number">0</span>);</div><div class="line"></div><div class="line">    <span class="comment">/*</span></div><div class="line"><span class="comment">     * Thread to unpark is held in successor, which is normally</span></div><div class="line"><span class="comment">     * just the next node.  But if cancelled or apparently null,</span></div><div class="line"><span class="comment">     * traverse backwards from tail to find the actual</span></div><div class="line"><span class="comment">     * non-cancelled successor.</span></div><div class="line"><span class="comment">     */</span></div><div class="line">    Node s = node.next;</div><div class="line">    <span class="keyword">if</span> (s == <span class="keyword">null</span> || s.waitStatus &gt; <span class="number">0</span>) &#123;</div><div class="line">        s = <span class="keyword">null</span>;</div><div class="line">        <span class="keyword">for</span> (Node t = tail; t != <span class="keyword">null</span> &amp;&amp; t != node; t = t.prev)</div><div class="line">            <span class="keyword">if</span> (t.waitStatus &lt;= <span class="number">0</span>)</div><div class="line">                s = t;</div><div class="line">    &#125;</div><div class="line">    <span class="keyword">if</span> (s != <span class="keyword">null</span>)</div><div class="line">        LockSupport.unpark(s.thread);</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>这里简单介绍一下为什么循环是从tail往前遍历，这是因为CAS操作无法对双向链表进行原子插入，在enq中，具体的插入是，先将新节点指向tail，然后CAS将tail设为新节点，因此对于pred指针的设置时原子性的，可以保证从tail向前遍历可以找到所有的节点。而next指针只是一种优化路径，方便查找，并不能保证next为null，则该节点为队列的最后一个节点。</p>
 <p>tryRelease方法的源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 将state设置为0，解锁</span></div><div class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">tryRelease</span><span class="params">(<span class="keyword">int</span> releases)</span> </span>&#123;</div><div class="line">   <span class="keyword">assert</span> releases == <span class="number">1</span>; <span class="comment">// Otherwise unused</span></div><div class="line">   <span class="keyword">if</span> (getState() == <span class="number">0</span>) <span class="keyword">throw</span> <span class="keyword">new</span> IllegalMonitorStateException();</div><div class="line">   setExclusiveOwnerThread(<span class="keyword">null</span>);</div><div class="line">   setState(<span class="number">0</span>);</div><div class="line">   <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
 <p>由源码可知，tryRelease只需要将state设置为0即可，因为调用unlock方法的必定是之前调用lock成功的，因此当前state必定为1，为安全起见，使用getState判断是否为0，若为0，说明线程出错。state设置时，不需要调用CAS方法，只需要setState即可，保证write对于其他线程可见即可（通过volatile内存屏障保证）。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>AQS提供了一个框架，在其上可以构建丰富的线程同步工具类，JUC包中ReadWriteLock、CountDownLatch都是基于AQS实现的，AQS在JUC包中的地位相当重要。其类图如下：</p>
@@ -1421,9 +1423,9 @@
         
         <tags>
             
-            <tag> etcd </tag>
-            
             <tag> kubernetes </tag>
+            
+            <tag> etcd </tag>
             
         </tags>
         
@@ -1594,67 +1596,6 @@
     </entry>
     
     <entry>
-      <title><![CDATA[Zookeeper是动物管理员吗]]></title>
-      <url>/2017/09/29/zookeeper1/</url>
-      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。博客原文地址<a href="http://www.wangjialong.cc/2017/09/29/zookeeper1/#more">Zookeeper是动物管理员吗</a></p>
-<a id="more"></a>
-<h1 id="Zookeeper到底是不是动物管理员？"><a href="#Zookeeper到底是不是动物管理员？" class="headerlink" title="Zookeeper到底是不是动物管理员？"></a>Zookeeper到底是不是动物管理员？</h1><p>这个问题的答案可以从Zookeeper的的官网标志图初探端倪。</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
-<p>由上图，Zookeeper是一个穿着工装，拿着铁锹的工人啊，这不符合管理员的形象吧，管理员不应该是西装革履的吗？好吧，有些牵强，那我们来看看keeper这个词的翻译，使用百度在线翻译的结果如下：</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/36748004.jpg" alt=""></p>
-<p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
-<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
-<h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg" alt="zookeeper roles"></p>
-<ul>
-<li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
-</ul>
-<p>集群模型如下:</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg" alt="zookeeper service"></p>
-<p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
-<h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
-<h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
-<p><img src="http://www.wuzesheng.com/wp-content/uploads/2013/12/zookeeper-tree.jpg" alt="image"></p>
-<p>ZooKeeper数据模型的结构与Unix文件系统很类似，整体上可以看作是一棵树，每个节点称做一个ZNode。每个ZNode都可以通过其路径唯一标识，图中每个节点左侧即为其路径唯一标识。</p>
-<p>注：<br>这里的ZNode可以理解成既是Unix里的文件，又是Unix里的目录。因为每个ZNode不仅本身可以写数据（相当于Unix里的文件），还可以有下一级文件或目录（相当于Unix里的目录）。</p>
-<p>在ZooKeeper中，ZNode可以分为持久节点和临时节点两类。</p>
-<p><strong>持久节点</strong></p>
-<p>所谓持久节点是指一旦这个ZNode被创建了，除非主动进行ZNode的移除操作，否则这个ZNode将一直保存在ZooKeeper上。</p>
-<p><strong>临时节点</strong></p>
-<p>临时节点的生命周期跟客户端会话绑定，一旦客户端会话失效，那么这个客户端创建的所有临时节点都会被移除。</p>
-<h2 id="Watcher"><a href="#Watcher" class="headerlink" title="Watcher"></a>Watcher</h2><p>Watcher（事件监听器），是ZooKeeper中一个很重要的特性。ZooKeeper允许用户在指定节点上注册一些Watcher，并且在一些特定事件触发的时候，ZooKeeper服务端会将事件通知到感兴趣的客户端上去。该机制是ZooKeeper实现分布式协调服务的重要特性。</p>
-<h1 id="管理者-or-协调者"><a href="#管理者-or-协调者" class="headerlink" title="管理者 or 协调者"></a>管理者 or 协调者</h1><p>通过Zookeeper的数据节点（临时节点特性）和watcher的组合，可以满足诸如服务发布/订阅、命名服务、master选举、分布式锁等功能。而Zookeeper之所以是keeper而不是manager，正是因为它在Hadoop生态中的两大功能是选举和元数据存储，才使得它有了分布式协调者的称号。</p>
-<p>元数据指的是配置信息、服务注册列表等，这使得Zookeeper更像是一个分布式的注册表。当client需要使用Zookeeper时，如HBase Master需要选举一个主节点，那么他们就并发的去Zookeeper上创建一个临时节点（节点名称一样），Zookeeper的分布式锁可以保证只有一个client创建成功，最后创建成功的那个节点，就当选为主节点。</p>
-<p>Zookeeper在Hadoop中的应用是HDFS和YARN的HA，在HBase中的应用有选举与主备切换、系统容错（RegionServer挂掉后，HMaster获知）、Region状态信息的管理。下面我们来看一下Zookeeper是如何让HMaster获知RegionServer挂掉的信息的。</p>
-<p>当HBase启动时，每个RegionServer都会到ZooKeeper的/hbase/rs节点下创建一个信息节点（临时节点，下文中，我们称该节点为”rs状态节点”），例如/hbase/rs/[Hostname]，同时，HMaster会对这个节点注册监听。当某个 RegionServer 挂掉的时候，ZooKeeper会因为在一段时间内无法接受其心跳（即 Session 失效），而删除掉该 RegionServer 服务器对应的 rs 状态节点。与此同时，HMaster 则会接收到 ZooKeeper 的 NodeDelete 通知，从而感知到某个节点断开，并立即开始容错工作。也就是说，Zookeeper是通过心跳机制来维护临时节点信息的，如果心跳发生了timeout，则Zookeeper删除该临时节点，然后通知注册过该临时节点监听的HMaster，所以Zookeeper默认临时节点删除后，该RegionServer处于无法工作状态，至于是网络延时原因还是该RegionServer确实挂掉了，Zookeeper不管。</p>
-<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>Zookeeper在Hadoop生态中十分重要，但它并没有上升到管理员的高度，Hadoop中使用Zookeeper服务的组件都有自己的master（NameNode、ResourManager、HMaster），各组件视自己的需求，交付给Zookeeper不同程度的权力。NameNode在实现HA的时候，需要用到Zookeeper的选举和watcher功能，因此交付给Zookeeper两个NameNode，让它来决定谁为Active；YARN的HA也是如此。HMaster交给Zookeeper的权力比较大，HMaster选举与主备切换、系统容错、RootRegion管理、Region状态管理和分布式SplitWAL任务管理等都交给了Zookeeper，让Zookeeper来管理HMaster的主备以及RegionServer信息等。Zookeeper相当于是古代的丞相，皇帝（NameNode、HMaster）给它多少权力，它就执行多大的功能。或许有一天，Zookeeper会成为Hadoop生态的“管仲”、“商鞅”，而那一天会不会实现，就要看Hadoop生态的发展了。。。</p>
-<h1 id="参考博客"><a href="#参考博客" class="headerlink" title="参考博客"></a>参考博客</h1><ul>
-<li><a href="http://www.wangjialong.cc/2017/09/27/etcd&amp;zookeeper/">Zookeeper与etcd的对比</a></li>
-<li><a href="http://linbingdong.com/2017/01/10/ZooKeeper原理及其在Hadoop和HBase中的应用/" target="_blank" rel="external">ZooKeeper原理及其在Hadoop和HBase中的应用</a></li>
-<li><a href="http://cailin.iteye.com/blog/2014486" target="_blank" rel="external">Zookeeper原理</a></li>
-</ul>
-]]></content>
-      
-        <categories>
-            
-            <category> hadoop </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> hadoop </tag>
-            
-            <tag> zookeeper </tag>
-            
-            <tag> HBase </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
       <title><![CDATA[LeetCode 55 Jump Game从回溯到动态规划]]></title>
       <url>/2017/09/29/leetcode55/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>动态规划是一个降低时间的很有效的方法，通常一个可以使用递归从上到下来解决的题目，必定可以转化为动态规划，从下往上计算，并通过设置一个数组存放子问题的解，来降低问题的求解步骤。LeetCode上的第55题可以使用回溯法和动态规划来解决，但回溯法会造成栈溢出，下面讲解我的解题思路。</p>
@@ -1712,6 +1653,67 @@
             <tag> Java </tag>
             
             <tag> LeetCode、动态规划 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[Zookeeper是动物管理员吗]]></title>
+      <url>/2017/09/29/zookeeper1/</url>
+      <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。博客原文地址<a href="http://www.wangjialong.cc/2017/09/29/zookeeper1/#more">Zookeeper是动物管理员吗</a></p>
+<a id="more"></a>
+<h1 id="Zookeeper到底是不是动物管理员？"><a href="#Zookeeper到底是不是动物管理员？" class="headerlink" title="Zookeeper到底是不是动物管理员？"></a>Zookeeper到底是不是动物管理员？</h1><p>这个问题的答案可以从Zookeeper的的官网标志图初探端倪。</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
+<p>由上图，Zookeeper是一个穿着工装，拿着铁锹的工人啊，这不符合管理员的形象吧，管理员不应该是西装革履的吗？好吧，有些牵强，那我们来看看keeper这个词的翻译，使用百度在线翻译的结果如下：</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/36748004.jpg" alt=""></p>
+<p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
+<h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
+<h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg" alt="zookeeper roles"></p>
+<ul>
+<li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
+</ul>
+<p>集群模型如下:</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg" alt="zookeeper service"></p>
+<p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
+<h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
+<h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
+<p><img src="http://www.wuzesheng.com/wp-content/uploads/2013/12/zookeeper-tree.jpg" alt="image"></p>
+<p>ZooKeeper数据模型的结构与Unix文件系统很类似，整体上可以看作是一棵树，每个节点称做一个ZNode。每个ZNode都可以通过其路径唯一标识，图中每个节点左侧即为其路径唯一标识。</p>
+<p>注：<br>这里的ZNode可以理解成既是Unix里的文件，又是Unix里的目录。因为每个ZNode不仅本身可以写数据（相当于Unix里的文件），还可以有下一级文件或目录（相当于Unix里的目录）。</p>
+<p>在ZooKeeper中，ZNode可以分为持久节点和临时节点两类。</p>
+<p><strong>持久节点</strong></p>
+<p>所谓持久节点是指一旦这个ZNode被创建了，除非主动进行ZNode的移除操作，否则这个ZNode将一直保存在ZooKeeper上。</p>
+<p><strong>临时节点</strong></p>
+<p>临时节点的生命周期跟客户端会话绑定，一旦客户端会话失效，那么这个客户端创建的所有临时节点都会被移除。</p>
+<h2 id="Watcher"><a href="#Watcher" class="headerlink" title="Watcher"></a>Watcher</h2><p>Watcher（事件监听器），是ZooKeeper中一个很重要的特性。ZooKeeper允许用户在指定节点上注册一些Watcher，并且在一些特定事件触发的时候，ZooKeeper服务端会将事件通知到感兴趣的客户端上去。该机制是ZooKeeper实现分布式协调服务的重要特性。</p>
+<h1 id="管理者-or-协调者"><a href="#管理者-or-协调者" class="headerlink" title="管理者 or 协调者"></a>管理者 or 协调者</h1><p>通过Zookeeper的数据节点（临时节点特性）和watcher的组合，可以满足诸如服务发布/订阅、命名服务、master选举、分布式锁等功能。而Zookeeper之所以是keeper而不是manager，正是因为它在Hadoop生态中的两大功能是选举和元数据存储，才使得它有了分布式协调者的称号。</p>
+<p>元数据指的是配置信息、服务注册列表等，这使得Zookeeper更像是一个分布式的注册表。当client需要使用Zookeeper时，如HBase Master需要选举一个主节点，那么他们就并发的去Zookeeper上创建一个临时节点（节点名称一样），Zookeeper的分布式锁可以保证只有一个client创建成功，最后创建成功的那个节点，就当选为主节点。</p>
+<p>Zookeeper在Hadoop中的应用是HDFS和YARN的HA，在HBase中的应用有选举与主备切换、系统容错（RegionServer挂掉后，HMaster获知）、Region状态信息的管理。下面我们来看一下Zookeeper是如何让HMaster获知RegionServer挂掉的信息的。</p>
+<p>当HBase启动时，每个RegionServer都会到ZooKeeper的/hbase/rs节点下创建一个信息节点（临时节点，下文中，我们称该节点为”rs状态节点”），例如/hbase/rs/[Hostname]，同时，HMaster会对这个节点注册监听。当某个 RegionServer 挂掉的时候，ZooKeeper会因为在一段时间内无法接受其心跳（即 Session 失效），而删除掉该 RegionServer 服务器对应的 rs 状态节点。与此同时，HMaster 则会接收到 ZooKeeper 的 NodeDelete 通知，从而感知到某个节点断开，并立即开始容错工作。也就是说，Zookeeper是通过心跳机制来维护临时节点信息的，如果心跳发生了timeout，则Zookeeper删除该临时节点，然后通知注册过该临时节点监听的HMaster，所以Zookeeper默认临时节点删除后，该RegionServer处于无法工作状态，至于是网络延时原因还是该RegionServer确实挂掉了，Zookeeper不管。</p>
+<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>Zookeeper在Hadoop生态中十分重要，但它并没有上升到管理员的高度，Hadoop中使用Zookeeper服务的组件都有自己的master（NameNode、ResourManager、HMaster），各组件视自己的需求，交付给Zookeeper不同程度的权力。NameNode在实现HA的时候，需要用到Zookeeper的选举和watcher功能，因此交付给Zookeeper两个NameNode，让它来决定谁为Active；YARN的HA也是如此。HMaster交给Zookeeper的权力比较大，HMaster选举与主备切换、系统容错、RootRegion管理、Region状态管理和分布式SplitWAL任务管理等都交给了Zookeeper，让Zookeeper来管理HMaster的主备以及RegionServer信息等。Zookeeper相当于是古代的丞相，皇帝（NameNode、HMaster）给它多少权力，它就执行多大的功能。或许有一天，Zookeeper会成为Hadoop生态的“管仲”、“商鞅”，而那一天会不会实现，就要看Hadoop生态的发展了。。。</p>
+<h1 id="参考博客"><a href="#参考博客" class="headerlink" title="参考博客"></a>参考博客</h1><ul>
+<li><a href="http://www.wangjialong.cc/2017/09/27/etcd&amp;zookeeper/">Zookeeper与etcd的对比</a></li>
+<li><a href="http://linbingdong.com/2017/01/10/ZooKeeper原理及其在Hadoop和HBase中的应用/" target="_blank" rel="external">ZooKeeper原理及其在Hadoop和HBase中的应用</a></li>
+<li><a href="http://cailin.iteye.com/blog/2014486" target="_blank" rel="external">Zookeeper原理</a></li>
+</ul>
+]]></content>
+      
+        <categories>
+            
+            <category> hadoop </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> hadoop </tag>
+            
+            <tag> zookeeper </tag>
+            
+            <tag> HBase </tag>
             
         </tags>
         
@@ -1867,9 +1869,9 @@
             
             <tag> hadoop </tag>
             
-            <tag> zookeeper </tag>
-            
             <tag> etcd </tag>
+            
+            <tag> zookeeper </tag>
             
         </tags>
         
@@ -2290,31 +2292,6 @@
     </entry>
     
     <entry>
-      <title><![CDATA[Green Blue Deployment]]></title>
-      <url>/2017/09/14/greenBlueDeploy/</url>
-      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 运维 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 运维 </tag>
-            
-            <tag> 部署 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
       <title><![CDATA[使用httpd搭建内网yum源]]></title>
       <url>/2017/09/14/private_yum/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
@@ -2408,6 +2385,31 @@
         <tags>
             
             <tag> 随想 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
             
         </tags>
         
