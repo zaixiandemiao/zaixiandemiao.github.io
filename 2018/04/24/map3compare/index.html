@@ -81,22 +81,22 @@
 
 
 
-<meta name="description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。">
+<meta name="description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。 转载请注明出处：http://www.wangjialong.cc/2018/04/24/map3compare/#more">
 <meta name="keywords" content="Java,Collection,Map,HashTable,ConcurrentHashMap">
 <meta property="og:type" content="article">
 <meta property="og:title" content="ConcurrentHashMap、HashTable、HashMap三兄弟">
 <meta property="og:url" content="http://www.wangjialong.cc/2018/04/24/map3compare/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。">
+<meta property="og:description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。 转载请注明出处：http://www.wangjialong.cc/2018/04/24/map3compare/#more">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/25703036.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/9805411.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/16776891.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/25497064.jpg">
-<meta property="og:updated_time" content="2018-04-24T08:36:07.613Z">
+<meta property="og:updated_time" content="2018-04-24T08:38:06.474Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ConcurrentHashMap、HashTable、HashMap三兄弟">
-<meta name="twitter:description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。">
+<meta name="twitter:description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。 转载请注明出处：http://www.wangjialong.cc/2018/04/24/map3compare/#more">
 <meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/25703036.jpg">
 
 
@@ -364,6 +364,7 @@
 
       
         <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。</p>
+<p>转载请注明出处：<a href="http://www.wangjialong.cc/2018/04/24/map3compare/#more">http://www.wangjialong.cc/2018/04/24/map3compare/#more</a></p>
 <a id="more"></a>
 <h1 id="HashTable"><a href="#HashTable" class="headerlink" title="HashTable"></a>HashTable</h1><p>HashTable是三兄弟中最“老”的，从JDK1.0就存在了，它继承了Dictionary类，作为一个哈希表来使用，其key必须包含hashCode方法和equals方法。在JDK1.2之后，为了将其纳入<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/collections/index.html" target="_blank" rel="external">Java Collections Framework</a>，使其实现了Map接口，成为了Map家族的一员。</p>
 <p>HashTable的内部实现是通过一个Entry数组存放bucket，当Hash冲突时，采用开链法，在对应的bucket之后添加节点，形成链表。其最终形式如下图：</p>

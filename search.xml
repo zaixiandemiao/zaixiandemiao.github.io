@@ -6,6 +6,7 @@
       <title><![CDATA[ConcurrentHashMap、HashTable、HashMap三兄弟]]></title>
       <url>/2018/04/24/map3compare/</url>
       <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。</p>
+<p>转载请注明出处：<a href="http://www.wangjialong.cc/2018/04/24/map3compare/#more">http://www.wangjialong.cc/2018/04/24/map3compare/#more</a></p>
 <a id="more"></a>
 <h1 id="HashTable"><a href="#HashTable" class="headerlink" title="HashTable"></a>HashTable</h1><p>HashTable是三兄弟中最“老”的，从JDK1.0就存在了，它继承了Dictionary类，作为一个哈希表来使用，其key必须包含hashCode方法和equals方法。在JDK1.2之后，为了将其纳入<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/collections/index.html" target="_blank" rel="external">Java Collections Framework</a>，使其实现了Map接口，成为了Map家族的一员。</p>
 <p>HashTable的内部实现是通过一个Entry数组存放bucket，当Hash冲突时，采用开链法，在对应的bucket之后添加节点，形成链表。其最终形式如下图：</p>
@@ -2340,6 +2341,54 @@
     </entry>
     
     <entry>
+      <title><![CDATA[我的第一篇博客]]></title>
+      <url>/2017/09/14/hello-world/</url>
+      <content type="html"><![CDATA[<p>很早之前就在github上申请了github pages，想着搭建一个属于自己的博客，但因为人懒，很多笔记都记在了有道云笔记上，没有整理成博客的好习惯。用有道云笔记虽然也可以起到一定的总结作用，但是毕竟只是给自己看的，所以并没有很用心，<br>所以写成的东西也只是用到的时候，自己再翻出了笔记回忆一下，没有起到温故知新的作用。<br><a id="more"></a></p>
+<p>最近看到一个学长的博客，感触良多，觉得养成一个总结知识，整理成博客的好习惯是多么的重要，一方面是对自己学习的督促，另一方面，也是与他人学习交流的好途径，因此，得空用hexo搭建了这个博客。因为是穷学生，用不起长期的电脑，就用很早之前的github pages托管了，而且我要整理的内容也不多，这个方案完全可以满足我的需求。</p>
+<p>有了平台之后，接下来就是好习惯的培养了。近期的计划是先将之前的一些笔记整理上来，之后再陆续把学习生活中的心得记录到此，希望自己可以养成一个好习惯吧。 (*￣︶￣)</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 随想 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 随想 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
+      <title><![CDATA[Green Blue Deployment]]></title>
+      <url>/2017/09/14/greenBlueDeploy/</url>
+      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
+<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
+<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
+]]></content>
+      
+        <categories>
+            
+            <category> 运维 </category>
+            
+        </categories>
+        
+        
+        <tags>
+            
+            <tag> 运维 </tag>
+            
+            <tag> 部署 </tag>
+            
+        </tags>
+        
+    </entry>
+    
+    <entry>
       <title><![CDATA[使用httpd搭建内网yum源]]></title>
       <url>/2017/09/14/private_yum/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>在使用CentOS时，由于众所周知的原因，在安装软件时总是会因为超市而导致安装失败的问题，尤其是在安装文件偏大的软件时，这种现象发生的异常频繁，常见的解决方法是：</p>
@@ -2410,54 +2459,6 @@
             <tag> 运维 </tag>
             
             <tag> 内网yum源 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
-      <title><![CDATA[我的第一篇博客]]></title>
-      <url>/2017/09/14/hello-world/</url>
-      <content type="html"><![CDATA[<p>很早之前就在github上申请了github pages，想着搭建一个属于自己的博客，但因为人懒，很多笔记都记在了有道云笔记上，没有整理成博客的好习惯。用有道云笔记虽然也可以起到一定的总结作用，但是毕竟只是给自己看的，所以并没有很用心，<br>所以写成的东西也只是用到的时候，自己再翻出了笔记回忆一下，没有起到温故知新的作用。<br><a id="more"></a></p>
-<p>最近看到一个学长的博客，感触良多，觉得养成一个总结知识，整理成博客的好习惯是多么的重要，一方面是对自己学习的督促，另一方面，也是与他人学习交流的好途径，因此，得空用hexo搭建了这个博客。因为是穷学生，用不起长期的电脑，就用很早之前的github pages托管了，而且我要整理的内容也不多，这个方案完全可以满足我的需求。</p>
-<p>有了平台之后，接下来就是好习惯的培养了。近期的计划是先将之前的一些笔记整理上来，之后再陆续把学习生活中的心得记录到此，希望自己可以养成一个好习惯吧。 (*￣︶￣)</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 随想 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 随想 </tag>
-            
-        </tags>
-        
-    </entry>
-    
-    <entry>
-      <title><![CDATA[Green Blue Deployment]]></title>
-      <url>/2017/09/14/greenBlueDeploy/</url>
-      <content type="html"><![CDATA[<p>自动部署中的一种技术，通过保持一个Blue版本的Deployment，来确保Green版的发布失败后可以进行回滚，类似于建立快照，在Caas（Container as a service）中，通过健康检查（http/tcp)确保每个节点都正常部署到了Green状态，如果发生了异常，则所有节点回滚到Blue状态，主要是因为微服务架构下，service通常会进行冗余部署，以达到高可用性（一个节点挂了，有stand-by node），因此版本更新时，通常是要保证所有节点正常部署的。<br><a id="more"></a></p>
-<p>原理：<br><img src="http://ow9czedj7.bkt.clouddn.com/17-9-14/82455068.jpg" alt="Green-Blue-Deployment"></p>
-<p>如图，为了保证服务的downtime最小化，通常建立一个单独的Green版本进行测试，当全部测试通过后，将路由转移到Green版本中，此时Blue版本的空闲了出来。<br> 优势：<br>1）发生故障后，可以快速回滚，仅仅通过将路由转移到Blue版本即可，<br>此时可能会有丢失Transaction的问题，一种方法是，当Green版本工作时，也会将Transaction同步给Blue版本，以保证一个backup； 另一种方法是，当部署没有完全cut-over的时候，让application处于read-only的状态，此时不会有transaction，当完成后，置于read-write状态<br>2）永远都有一个standby在工作，当发生灾难时，可以快速恢复<br>两个环境必须尽可能的独立</p>
-]]></content>
-      
-        <categories>
-            
-            <category> 运维 </category>
-            
-        </categories>
-        
-        
-        <tags>
-            
-            <tag> 运维 </tag>
-            
-            <tag> 部署 </tag>
             
         </tags>
         
