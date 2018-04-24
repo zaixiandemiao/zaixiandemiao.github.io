@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Java,HashSet," />
+  <meta name="keywords" content="Java,Collection,Map,HashTable,ConcurrentHashMap," />
 
 
 
@@ -81,18 +81,23 @@
 
 
 
-<meta name="description" content="Java中Set接口下的HashSet类是一个存储不可重复数据的集合，可是我们在用的时候往往发现，明明看似重复的数据，HashSet仍然存储了进去，这不免让我们感到疑惑，不是说存储不可重复的数据的吗？下面通过实验一步一步搞懂HashSet的存储机制。">
-<meta name="keywords" content="Java,HashSet">
+<meta name="description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。">
+<meta name="keywords" content="Java,Collection,Map,HashTable,ConcurrentHashMap">
 <meta property="og:type" content="article">
-<meta property="og:title" content="HashSet的存储机制">
-<meta property="og:url" content="http://www.wangjialong.cc/2017/09/15/hash_set(java)/index.html">
+<meta property="og:title" content="ConcurrentHashMap、HashTable、HashMap三兄弟">
+<meta property="og:url" content="http://www.wangjialong.cc/2017/11/26/map3compare/index.html">
 <meta property="og:site_name" content="记忆碎片">
-<meta property="og:description" content="Java中Set接口下的HashSet类是一个存储不可重复数据的集合，可是我们在用的时候往往发现，明明看似重复的数据，HashSet仍然存储了进去，这不免让我们感到疑惑，不是说存储不可重复的数据的吗？下面通过实验一步一步搞懂HashSet的存储机制。">
+<meta property="og:description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2017-10-24T12:01:32.000Z">
+<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/25703036.jpg">
+<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/9805411.jpg">
+<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/16776891.jpg">
+<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/25497064.jpg">
+<meta property="og:updated_time" content="2018-04-24T08:33:28.593Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="HashSet的存储机制">
-<meta name="twitter:description" content="Java中Set接口下的HashSet类是一个存储不可重复数据的集合，可是我们在用的时候往往发现，明明看似重复的数据，HashSet仍然存储了进去，这不免让我们感到疑惑，不是说存储不可重复的数据的吗？下面通过实验一步一步搞懂HashSet的存储机制。">
+<meta name="twitter:title" content="ConcurrentHashMap、HashTable、HashMap三兄弟">
+<meta name="twitter:description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。">
+<meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/25703036.jpg">
 
 
 
@@ -122,13 +127,13 @@
 
 
 
-  <link rel="canonical" href="http://www.wangjialong.cc/2017/09/15/hash_set(java)/"/>
+  <link rel="canonical" href="http://www.wangjialong.cc/2017/11/26/map3compare/"/>
 
 
 
 
 
-  <title>HashSet的存储机制 | 记忆碎片</title>
+  <title>ConcurrentHashMap、HashTable、HashMap三兄弟 | 记忆碎片</title>
   
 
 
@@ -264,7 +269,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/09/15/hash_set(java)/">
+    <link itemprop="mainEntityOfPage" href="http://www.wangjialong.cc/2017/11/26/map3compare/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zaixiandemiao">
@@ -281,7 +286,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">HashSet的存储机制</h1>
+          <h1 class="post-title" itemprop="name headline">ConcurrentHashMap、HashTable、HashMap三兄弟</h1>
         
 
         <div class="post-meta">
@@ -293,8 +298,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-09-15T00:00:00+08:00">
-                2017-09-15
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-26T00:00:00+08:00">
+                2017-11-26
               </time>
             
 
@@ -358,26 +363,26 @@
       
 
       
-        <p>Java中Set接口下的HashSet类是一个存储不可重复数据的集合，可是我们在用的时候往往发现，明明看似重复的数据，HashSet仍然存储了进去，这不免让我们感到疑惑，不是说存储不可重复的数据的吗？下面通过实验一步一步搞懂HashSet的存储机制。<br><a id="more"></a></p>
-<ol>
-<li>假设有以下类  </li>
-</ol>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Student</span> </span>&#123;</div><div class="line">  String  stuName;</div><div class="line"></div><div class="line">  <span class="function"><span class="keyword">public</span> <span class="title">Student</span><span class="params">()</span> </span>&#123;</div><div class="line">    <span class="comment">// TODO Auto-generated constructor stub</span></div><div class="line">  &#125;</div><div class="line">  <span class="function"><span class="keyword">public</span> <span class="title">Student</span><span class="params">(String s)</span></span>&#123;</div><div class="line">    <span class="keyword">this</span>.stuName = s;</div><div class="line">  &#125;</div><div class="line">  <span class="function"><span class="keyword">public</span> String <span class="title">getStu</span><span class="params">()</span></span>&#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">this</span>.stuName;</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<ol>
-<li>在test类中主函数中写入如下代码</li>
-</ol>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">Set&lt;Student&gt;  testSet = <span class="keyword">new</span> HashSet&lt;Student&gt;();</div><div class="line">Student s1 = <span class="keyword">new</span> Student(<span class="string">"stu1"</span>);</div><div class="line">Student s2 =<span class="keyword">new</span> Student(<span class="string">"stu1"</span>);</div><div class="line">Student s3 =<span class="keyword">new</span> Student(<span class="string">"stu2"</span>);</div><div class="line">testSet.add(s1);</div><div class="line">testSet.add(s2);</div><div class="line">testSet.add(s3);</div><div class="line">Iterator&lt;Student&gt; it = testSet.iterator();</div><div class="line"><span class="keyword">while</span>(it.hasNext())&#123;</div><div class="line">     Student tempStu =it.next();</div><div class="line">     System.out.println(tempStu.getStu());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>Eclipse中的输出为  stu1,stu1,stu2</p>
-<p>大家会说，当然了，因为Student类没有比较嘛，下面我们在Student类中重写Object的equals方法</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object obj)</span> </span>&#123;</div><div class="line">  <span class="comment">// TODO Auto-generated method stub</span></div><div class="line">  Student s =(Student)obj;</div><div class="line">  <span class="keyword">return</span> <span class="keyword">this</span>.stuName.equals(s.getStu());</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>仍然是输出三个结果，通过观察Object类的方法，我们发现一个hashCode()方法，HashSet会不会跟这个方法有点关系呢？下面重写这个方法。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span> </span>&#123;</div><div class="line">  <span class="comment">// TODO Auto-generated method stub</span></div><div class="line">  <span class="keyword">if</span>(stuName==<span class="string">"stu1"</span>)</div><div class="line">    <span class="keyword">return</span> <span class="number">1</span>;</div><div class="line">  <span class="keyword">else</span> &#123;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">super</span>.hashCode();</div><div class="line">  &#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>Eclipse的输出为stu1 ,stu2</p>
-<p>通过给stuName为stu1的Student对象的hashCode赋值为相同的1，我们得到的输出是一个stu1，满足了存储不可重复的目的。下面我们做个有趣的事情。将上面重写的equals方法改为如下代码。</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">    <span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object obj)</span> </span>&#123;</div><div class="line"><span class="comment">// TODO Auto-generated method stub</span></div><div class="line"><span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>输出  stu1,stu2,stu1</p>
-<p>通过给equals方法重写，使其始终返回false，导致即使两个stu1的hashCode相同，仍然可以插入，至此，我们明白了HashSet的存储机制。<br>HashSet在存一个新的对象的时候，先比较其跟已有的对象中的hashCode是否有相同的，如果没有相同的，则直接添加，不会调用equals方法进行判断，所以导致即使我们重写了equals方法也无法避免重复值的插入，只有当有两个hashCode相同的时候，它才会调用equals方法进行比较，如果返回的是true，则不添加，如果返回false，则添加进集合，所以在最后我们给定stu1的hashCode为1的时候，因为equals始终返回false，所有两个stu1均存到了集合中。</p>
-<p>至此，我们搞清楚了HashSet的存储机制，但对于hashCode方法的重写，又会使得我们头疼了，如何使属性相同的hashCode不同呢？好在有Eclipse帮助我们，只要在Student类中右击-&gt;source-&gt;重写hashCode方法和equals方法,在弹出的窗口中选择相关属性即可，作为小白的我，不得不感叹Eclipse的伟大之处</p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。</p>
+<a id="more"></a>
+<h1 id="HashTable"><a href="#HashTable" class="headerlink" title="HashTable"></a>HashTable</h1><p>HashTable是三兄弟中最“老”的，从JDK1.0就存在了，它继承了Dictionary类，作为一个哈希表来使用，其key必须包含hashCode方法和equals方法。在JDK1.2之后，为了将其纳入<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/collections/index.html" target="_blank" rel="external">Java Collections Framework</a>，使其实现了Map接口，成为了Map家族的一员。</p>
+<p>HashTable的内部实现是通过一个Entry数组存放bucket，当Hash冲突时，采用开链法，在对应的bucket之后添加节点，形成链表。其最终形式如下图：</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/18-4-24/25703036.jpg" alt=""></p>
+<p>HashTable是线程安全的，它实现的方式是将涉及到修改Hashtable的方法使用synchronized进行修饰，是多个线程在调用同步方法时，实际上其按照串行化方式运行。synchronized底层实际上是通过“对象锁”来实现的，也就是说，在调用synchronized修饰的方法时，首先需要获取该对象对应的一个锁，退出该方法时，再释放该对象锁。对象锁是和对象一一对应的，因此调用该方法的不同同步方法时，实际上也是串行化执行的。具体的例子就是，当线程A执行put操作，线程B执行get操作，这两个操作是无法并行的，因此HashTable的线程安全实现方式就是，强制多线程对该对象的访问串行化。</p>
+<h1 id="HashMap"><a href="#HashMap" class="headerlink" title="HashMap"></a>HashMap</h1><p>HashMap从JDK1.2出现，实现了Map接口，是Map家族中使用最多的一个工具类，它改进了HashTable中很多低性能的方法，提供了相对高效的插入、查询操作。但与此同时，它摒弃了线程安全的实现。HashMap在JDK1.8之后引入了红黑树，当一个bucket对应的链表节点数大于8，将其“树化”，以提高查询性能。其最终形式如下图：</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/18-4-24/9805411.jpg" alt=""></p>
+<p>如图，当bucket[n]对应的链表节点数&gt;8的时候，将其进行树化，生成对应的红黑树。红黑树是一个平衡二叉查找树，能够保证在O(logN)的时间复杂度内找到对应的k值，此时的N代表的是树中所有节点的个数。由于HashMap有rehash机制，当前节点总数超过阈值时，会进行table数组的扩容，因此单个红黑树的节点数不会太多，可以约等于常数，因此保证了在O(1)<br>的时间内找到key值，满足Hash表的特性。HashMap不是线程安全的，其在rehash的过程中，可能出现死循环，具体可参考<a href="http://www.jasongj.com/java/concurrenthashmap/" target="_blank" rel="external">从ConcurrentHashMap的演进看Java多线程核心技术</a>.</p>
+<h1 id="ConcurrentHashMap"><a href="#ConcurrentHashMap" class="headerlink" title="ConcurrentHashMap"></a>ConcurrentHashMap</h1><p>ConcurrentHashMap是线程安全的HashMap，其内部的结构和HashMap非常相像，但为了满足线程安全的同时，提高并发度，内部定义了两个静态类HashEntry和Segment。HashEntry 用来封装映射表的键 / 值对；Segment 用来充当锁的角色，每个 Segment 对象守护整个散列映射表的若干个桶。每个桶是由若干个 HashEntry 对象链接起来的链表。一个 ConcurrentHashMap 实例中包含由若干个 Segment 对象组成的数组。其存储结构如图：</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/18-4-24/16776891.jpg" alt=""></p>
+<p>当需要获取Map中的某个key值对应的value时，需要首先找到对应的Segment，之后在其内部数组查找key的位置，找到之后，返回即可。ConcurrentHashMap利用volatile的内存可见性，基本实现了读时无锁，除非在读取时发现value为null，此时代表发生了重排序，需要尝试获取Segment的锁，重新获取value值即可获得最新value值。其详细原理可以参考<a href="https://www.ibm.com/developerworks/cn/java/java-lo-concurrenthashmap/index.html" target="_blank" rel="external">探索 ConcurrentHashMap 高并发性的实现机制</a></p>
+<p>上面的结构是1.8之前的ConcurrentHashMap，在JDK1.8中，已经不再使用两层数组来存储了，而是直接使用数组+开链法，对于数组的每个元素，使用细粒度锁来完成线程安全。其结构如图：</p>
+<p><img src="http://ow9czedj7.bkt.clouddn.com/18-4-24/25497064.jpg" alt=""></p>
+<p>如图所示，JDK1.8之后，ConcurrentHashMap改造为在HashMap的基础上，直接对bucket加锁，当需要为对应的bucket中添加一个节点的时候，使用synchronized语句块，对该bucket入口节点进行加锁，实现线程同步。当读某个key对应的value时，仍然是无需加锁的。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>ConcurrentHashMap、HashTable、HashMap三兄弟都实现了Map接口，完成K/V对的存储。在使用中，视场景不同，可以选择不同的类实现，如在单线程的情况下，无需考虑线程安全性问题，直接使用HashMap可以获得很好的性能。在多线程情况下，为了达到线程安全，可以选择HashTable或者ConcurrentHashMap来完成，当Map的数据量很少时，为了实现的方便，可以直接使用HashTable；当K/V对很多时，且读请求占比很大，此时可以使用ConcurrentHashMap来实现，可以达到并发的需求。</p>
+<h1 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h1><ul>
+<li><a href="https://www.ibm.com/developerworks/cn/java/java-lo-concurrenthashmap/index.html" target="_blank" rel="external">探索 ConcurrentHashMap 高并发性的实现机制</a></li>
+<li><a href="http://www.jasongj.com/java/concurrenthashmap/" target="_blank" rel="external">从ConcurrentHashMap的演进看Java多线程核心技术</a></li>
+</ul>
 
       
     </div>
@@ -397,7 +402,13 @@
           
             <a href="/tags/Java/" rel="tag"># Java</a>
           
-            <a href="/tags/HashSet/" rel="tag"># HashSet</a>
+            <a href="/tags/Collection/" rel="tag"># Collection</a>
+          
+            <a href="/tags/Map/" rel="tag"># Map</a>
+          
+            <a href="/tags/HashTable/" rel="tag"># HashTable</a>
+          
+            <a href="/tags/ConcurrentHashMap/" rel="tag"># ConcurrentHashMap</a>
           
         </div>
       
@@ -410,8 +421,8 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
-              <a href="/2017/09/14/hello-world/" rel="next" title="我的第一篇博客">
-                <i class="fa fa-chevron-left"></i> 我的第一篇博客
+              <a href="/2017/11/19/java_set_info/" rel="next" title="Set家族简介">
+                <i class="fa fa-chevron-left"></i> Set家族简介
               </a>
             
           </div>
@@ -420,8 +431,8 @@
 
           <div class="post-nav-prev post-nav-item">
             
-              <a href="/2017/09/17/weiyu/" rel="prev" title="2n+1个数中，n个数出现两次，找出只出现一次的数">
-                2n+1个数中，n个数出现两次，找出只出现一次的数 <i class="fa fa-chevron-right"></i>
+              <a href="/2017/11/26/map_info/" rel="prev" title="Map简介">
+                Map简介 <i class="fa fa-chevron-right"></i>
               </a>
             
           </div>
@@ -474,8 +485,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -562,6 +582,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#前言"><span class="nav-number">1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#HashTable"><span class="nav-number">2.</span> <span class="nav-text">HashTable</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#HashMap"><span class="nav-number">3.</span> <span class="nav-text">HashMap</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#ConcurrentHashMap"><span class="nav-number">4.</span> <span class="nav-text">ConcurrentHashMap</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#总结"><span class="nav-number">5.</span> <span class="nav-text">总结</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#参考资料"><span class="nav-number">6.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
