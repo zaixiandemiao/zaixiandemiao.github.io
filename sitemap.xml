@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://zaixiandemiao.github.io/2017/09/14/greenBlueDeploy/</loc>
+    
+    <lastmod>2024-07-26T15:52:53.811Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://zaixiandemiao.github.io/2017/09/26/mapreduce1/</loc>
     
     <lastmod>2024-07-26T15:50:31.165Z</lastmod>
@@ -194,13 +201,6 @@
     <loc>https://zaixiandemiao.github.io/2017/09/15/hash_set(java)/</loc>
     
     <lastmod>2017-10-24T12:01:32.000Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>https://zaixiandemiao.github.io/2017/09/14/greenBlueDeploy/</loc>
-    
-    <lastmod>2017-10-24T12:01:08.000Z</lastmod>
     
   </url>
   
