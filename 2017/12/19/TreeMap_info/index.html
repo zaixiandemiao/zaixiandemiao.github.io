@@ -360,7 +360,7 @@
       
 
       
-        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>TreeMap算是要分析的Map家族中的最后一个成员了，它是AbstractMap的子类，并实现了NavigableMap接口，是Map家族中比较特殊的，支持元素排序插入的Map集合类。博客原文地址<a href="http://www.wangjialong.cc/2017/12/19/TreeMap_info/#more">TreeMap源码阅读</a></p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>TreeMap算是要分析的Map家族中的最后一个成员了，它是AbstractMap的子类，并实现了NavigableMap接口，是Map家族中比较特殊的，支持元素排序插入的Map集合类。博客原文地址<a href="http://www.wangjialong.cc/2017/12/19/TreeMap_info/#more" target="_blank" rel="external">TreeMap源码阅读</a></p>
 <a id="more"></a>
 <h1 id="TreeMap简介"><a href="#TreeMap简介" class="headerlink" title="TreeMap简介"></a>TreeMap简介</h1><p>TreeMap的类图如下：</p>
 <p><img src="http://ow9czedj7.bkt.clouddn.com/17-12-18/6367000.jpg" alt=""></p>
@@ -385,7 +385,7 @@
 <li>通过循环，从新插入节点向上遍历，解决冲突，循环的终止条件是x.parent.color = BLACK,这里有一个隐含条件就是x.color = RED，因此当x的父节点为黑色时，红黑树已经调整完毕，其他的跳出循环为边界情况</li>
 <li>循环中，根据x父节点是否为其祖父节点的左子节点分成了两个分支，在各自的分支中，根据x叔父节点是否为红色，又分为两个分支，为红色时不需要进行旋转，当前结构平衡，只需要进行颜色的修改；不为红色时，需要通过旋转来保持红黑树的平衡。这里的算法可以参考博客<a href="https://www.cnblogs.com/fanzhidongyzby/p/3187912.html" target="_blank" rel="external">红黑树数据结构剖析</a></li>
 </ol>
-<p>这里可以对照我的另一篇关于HashMap的博客<a href="http://www.wangjialong.cc/2017/12/07/hashmap_info/#more">HashMap解析</a>，其中也有红黑树的相关实现，其算法一致，只是TreeMap中的更加直观，也更加具有语义化，比较容易理解。</p>
+<p>这里可以对照我的另一篇关于HashMap的博客<a href="http://www.wangjialong.cc/2017/12/07/hashmap_info/#more" target="_blank" rel="external">HashMap解析</a>，其中也有红黑树的相关实现，其算法一致，只是TreeMap中的更加直观，也更加具有语义化，比较容易理解。</p>
 <p>get、put之后，我们来分析一下查询方法，get方法实际也有查询的作用，但由于containsValue方法并没有使用get方法，因此单独分析一下，这里也比较容易理解，因为TreeMap的节点是通过key的大小来进行排序的，因此查询value的存在时，不能通过二叉搜索算法来查询，只能通过遍历的方式，时间复杂度为Ω(n)。containsValue定义如下:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">containsValue</span><span class="params">(Object value)</span> </span>&#123;</div><div class="line">    <span class="keyword">for</span> (Entry&lt;K,V&gt; e = getFirstEntry(); e != <span class="keyword">null</span>; e = successor(e))</div><div class="line">        <span class="keyword">if</span> (valEquals(value, e.value))</div><div class="line">            <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
 <ul>
 <li>getFirstEntry方法返回树的最左边的叶子节点，也就是key最小的节点</li>

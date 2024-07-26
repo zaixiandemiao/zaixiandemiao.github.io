@@ -358,7 +358,7 @@
       
 
       
-        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近在看资料的时候偶然间看到了AtomicLongFieldUpdater这个工具类，觉得新鲜就查阅了相关的资料，发现居然是jdk1.5就有的工具类，不禁感叹自己对Java的理解还是太浅了，于是在此整理一下该类的资料，作为知识储备。本篇博客原文地址<a href="http://www.wangjialong.cc/2018/01/18/atomicXFieldHelper/#more">AtomicXFieldUpdater，属性原子修改的外部工具类</a></p>
+        <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>最近在看资料的时候偶然间看到了AtomicLongFieldUpdater这个工具类，觉得新鲜就查阅了相关的资料，发现居然是jdk1.5就有的工具类，不禁感叹自己对Java的理解还是太浅了，于是在此整理一下该类的资料，作为知识储备。本篇博客原文地址<a href="http://www.wangjialong.cc/2018/01/18/atomicXFieldHelper/#more" target="_blank" rel="external">AtomicXFieldUpdater，属性原子修改的外部工具类</a></p>
 <a id="more"></a>
 <h1 id="AtomicXFieldUpdater"><a href="#AtomicXFieldUpdater" class="headerlink" title="AtomicXFieldUpdater"></a>AtomicXFieldUpdater</h1><p>根据名字，我们可以知道<code>AtomicLongFieldUpdater</code>是对long型field进行原子update的，它是一个工具类，那么有long型的话是不是就有其他类型？通过查看相应的包，发现还有<code>AtomicIntegerFieldUpdater</code>和<code>AtomicReferenceFieldUpdater</code>两个“同胞兄弟”，它们3个加起来，支持了对Integer、long、Reference的原子操作，分别对应的原子类为AtomicInteger、AtomicLong、AtomicReference，那么updater和对应的原子类有什么区别呢？</p>
 <p>拿<code>AtomicLongFieldUpdater</code>来说，通过API文档，其中写了一句：“通过反射技术来对volatile修饰的long型属性进行原子更新”。这里面有几个关键词：<strong>反射</strong>、<strong>volatile</strong>、<strong>原子更新</strong>。</p>

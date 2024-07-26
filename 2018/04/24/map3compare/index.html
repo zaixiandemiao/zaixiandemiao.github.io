@@ -89,15 +89,15 @@
 <meta property="og:site_name" content="记忆碎片">
 <meta property="og:description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。 转载请注明出处：http://www.wangjialong.cc/2018/04/24/map3compare/#more">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/25703036.jpg">
+<meta property="og:image" content="https://zaixiandemiao.github.io/image/18-4-24/25703036.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/9805411.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/16776891.jpg">
 <meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/25497064.jpg">
-<meta property="og:updated_time" content="2018-04-24T08:38:06.474Z">
+<meta property="og:updated_time" content="2024-07-26T15:11:56.558Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="ConcurrentHashMap、HashTable、HashMap三兄弟">
 <meta name="twitter:description" content="前言ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。 转载请注明出处：http://www.wangjialong.cc/2018/04/24/map3compare/#more">
-<meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-24/25703036.jpg">
+<meta name="twitter:image" content="https://zaixiandemiao.github.io/image/18-4-24/25703036.jpg">
 
 
 
@@ -364,11 +364,11 @@
 
       
         <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>ConcurrentHashMap、HashMap、HashTable可以说是师出同门，但却各自“身怀绝技”。他们虽然同为K/V键值对的存储容器，但其内部存储结构却不尽相同，本文针对它们在线程同步中的关系、内部结构进行总结，以便在使用中可以综合比较，选择最适合的工具类。</p>
-<p>转载请注明出处：<a href="http://www.wangjialong.cc/2018/04/24/map3compare/#more">http://www.wangjialong.cc/2018/04/24/map3compare/#more</a></p>
+<p>转载请注明出处：<a href="http://www.wangjialong.cc/2018/04/24/map3compare/#more" target="_blank" rel="external">http://www.wangjialong.cc/2018/04/24/map3compare/#more</a></p>
 <a id="more"></a>
 <h1 id="HashTable"><a href="#HashTable" class="headerlink" title="HashTable"></a>HashTable</h1><p>HashTable是三兄弟中最“老”的，从JDK1.0就存在了，它继承了Dictionary类，作为一个哈希表来使用，其key必须包含hashCode方法和equals方法。在JDK1.2之后，为了将其纳入<a href="https://docs.oracle.com/javase/8/docs/technotes/guides/collections/index.html" target="_blank" rel="external">Java Collections Framework</a>，使其实现了Map接口，成为了Map家族的一员。</p>
 <p>HashTable的内部实现是通过一个Entry数组存放bucket，当Hash冲突时，采用开链法，在对应的bucket之后添加节点，形成链表。其最终形式如下图：</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/18-4-24/25703036.jpg" alt=""></p>
+<p><img src="/image/18-4-24/25703036.jpg" alt=""></p>
 <p>HashTable是线程安全的，它实现的方式是将涉及到修改Hashtable的方法使用synchronized进行修饰，是多个线程在调用同步方法时，实际上其按照串行化方式运行。synchronized底层实际上是通过“对象锁”来实现的，也就是说，在调用synchronized修饰的方法时，首先需要获取该对象对应的一个锁，退出该方法时，再释放该对象锁。对象锁是和对象一一对应的，因此调用该方法的不同同步方法时，实际上也是串行化执行的。具体的例子就是，当线程A执行put操作，线程B执行get操作，这两个操作是无法并行的，因此HashTable的线程安全实现方式就是，强制多线程对该对象的访问串行化。</p>
 <h1 id="HashMap"><a href="#HashMap" class="headerlink" title="HashMap"></a>HashMap</h1><p>HashMap从JDK1.2出现，实现了Map接口，是Map家族中使用最多的一个工具类，它改进了HashTable中很多低性能的方法，提供了相对高效的插入、查询操作。但与此同时，它摒弃了线程安全的实现。HashMap在JDK1.8之后引入了红黑树，当一个bucket对应的链表节点数大于8，将其“树化”，以提高查询性能。其最终形式如下图：</p>
 <p><img src="http://ow9czedj7.bkt.clouddn.com/18-4-24/9805411.jpg" alt=""></p>
