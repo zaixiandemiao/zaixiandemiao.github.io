@@ -487,7 +487,7 @@
 <a id="more"></a>
 <h1 id="Sentry架构简述"><a href="#Sentry架构简述" class="headerlink" title="Sentry架构简述"></a>Sentry架构简述</h1><p>Sentry的设计目标是作为一层独立的访问控制层来对Hadoop组件（目前支持HDFS，Hive，Impala，solr，kafka，sqoop）进行授权/鉴权操作，因此它的耦合度很低，以插件的形式工作于组件之上。可以把它看作Java web中的filter，当用户请求过来的时候，sentry截获了用户的信息，对用户的权限进行验证，如果成功，则让该请求通过；否则，抛出异常，阻断该请求。</p>
 <p>Sentry是一个分层的结构，如下图所示</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/18-1-3/37903285.jpg" alt=""></p>
+<p><img src="/image/18-1-3/37903285.jpg" alt=""></p>
 <ul>
 <li><strong>Binding层</strong> 负责将用户对Hadoop组件的访问请求截获，并解析出其中的用户信息，以便进行鉴权</li>
 <li><strong>Provider层</strong> 是一个较通用的权限策略验证层，在这里抽象了权限对象，并对用户所具备的权限对象进行验证</li>
@@ -514,7 +514,7 @@
 </ul>
 <p>Binding层至此就分析完毕了，主要使用了HiveServer2中的session hook，将session的用户名读取并设置到一个key值中，以备之后的使用。</p>
 <h2 id="权限验证"><a href="#权限验证" class="headerlink" title="权限验证"></a>权限验证</h2><p>HiveServer2原生提供了访问控制逻辑，Sentry在此基础上进行了RBAC概念的强化，使得权限只能赋予给角色，角色赋予给用户/用户组，由此就有了权限——角色——用户组——用户的链式关系。当拿到用户名之后，通过数据库中读取其角色和相应的权限集合，便可以进行权限的验证了。Sentry中跟权限验证相关的类关系如下图所示：</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/18-1-3/96935367.jpg" alt=""></p>
+<p><img src="/image/18-1-3/96935367.jpg" alt=""></p>
 <blockquote>
 <p>类/接口的右上角表示其属于Hive还是Sentry，空心菱形代表的是实现的接口，实心箭头指向的为内部的一个引用对象。</p>
 </blockquote>

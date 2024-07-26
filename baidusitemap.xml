@@ -4,6 +4,30 @@
 
     
   <url>
+    <loc>https://zaixiandemiao.github.io/2018/01/04/sentry_authorize/</loc>
+    <lastmod>2024-07-26T15:29:44.845Z</lastmod>
+    <data>
+        <display>
+        <title>Sentry源码之HiveServer2鉴权过程</title>
+        <pubTime>2018-01-03T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>sentry</tag>
+         
+        <tag>细粒度访问控制</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>https://zaixiandemiao.github.io/2018/01/11/hwaq_info/</loc>
     <lastmod>2024-07-26T15:26:25.583Z</lastmod>
     <data>
@@ -220,30 +244,6 @@
            
              
               <breadCrumb title="Java" url="https://zaixiandemiao.github.io/categories/Java/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://zaixiandemiao.github.io/2018/01/04/sentry_authorize/</loc>
-    <lastmod>2018-01-20T01:55:05.668Z</lastmod>
-    <data>
-        <display>
-        <title>Sentry源码之HiveServer2鉴权过程</title>
-        <pubTime>2018-01-03T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>sentry</tag>
-         
-        <tag>细粒度访问控制</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
           
         </display>
     </data>
