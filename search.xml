@@ -1927,7 +1927,7 @@
     </entry>
     
     <entry>
-      <title><![CDATA[MapReduce1的工作原理]]></title>
+      <title><![CDATA[MapReduce的工作原理]]></title>
       <url>/2017/09/26/mapreduce1/</url>
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>《Hadoop权威指南》这本书上关于MapReduce的工作机制进行了详细的介绍，job运行过程每一步的讲解比较清晰，在此进行整理和汇总。</p>
 <a id="more"></a>
@@ -1939,11 +1939,11 @@
 <li>分布式文件系统（一般为HDFS），用于存放共享作业，如作业的jar文件，配置文件，计算所得的输入分片等，不存放计算的中间数据，中间数据存放在task所在节点的磁盘上。</li>
 </ul>
 <p>下图简单介绍了MapReduce程序的工作流程及上述几个实体扮演的角色</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-26/78433226.jpg" alt=""></p>
+<p><img src="/image/17-9-26/78433226.jpg" alt=""></p>
 <p>一个job的完整流程包括了作业的提交，作业的初始化，任务的分配，任务的执行，进度和状态的更新，作业的完成六大步骤，下面进行分步介绍。为了方便，下面将job执行的工作原理图放上，并添加标题，方便后面文字说明时进行查找。</p>
 <div id="img1" style="font-weight:bold">MapReduce作业的工作原理图</div>
 
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-26/37217492.jpg" alt="图1"></p>
+<p><img src="/image/17-9-26/37217492.jpg" alt="图1"></p>
 <h1 id="作业（job）的提交"><a href="#作业（job）的提交" class="headerlink" title="作业（job）的提交"></a>作业（job）的提交</h1><p>job的提交涉及到的实体是客户端（job client）、JobTracker和分布式文件系统（HDFS）。它的步骤主要是<a href="#img1">工作原理图</a>中的第1-4步。</p>
 <ol>
 <li>启动job。会创建一个JobSubmmiter对象，之后的作业提交交给它来完成。</li>

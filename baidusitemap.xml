@@ -4,6 +4,28 @@
 
     
   <url>
+    <loc>https://zaixiandemiao.github.io/2017/09/26/mapreduce1/</loc>
+    <lastmod>2024-07-26T15:50:31.165Z</lastmod>
+    <data>
+        <display>
+        <title>MapReduce的工作原理</title>
+        <pubTime>2017-09-25T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>MapReduce1</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>https://zaixiandemiao.github.io/2017/09/29/zookeeper1/</loc>
     <lastmod>2024-07-26T15:47:18.713Z</lastmod>
     <data>
@@ -522,28 +544,6 @@
            
              
               <breadCrumb title="algorithm" url="https://zaixiandemiao.github.io/categories/algorithm/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://zaixiandemiao.github.io/2017/09/26/mapreduce1/</loc>
-    <lastmod>2017-10-24T12:02:50.000Z</lastmod>
-    <data>
-        <display>
-        <title>MapReduce1的工作原理</title>
-        <pubTime>2017-09-25T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>MapReduce1</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
           
         </display>
     </data>
