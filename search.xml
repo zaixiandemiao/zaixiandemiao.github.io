@@ -1713,22 +1713,22 @@
       <content type="html"><![CDATA[<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>熟悉Hadoop的同学肯定听过这么一句话：“Zookeeper是动物管理员，管着大象（Hadoop）、蜜蜂（Hive）和小猪（Pig）”。刚开始接触到的时候感觉，哇，Zookeeper好厉害啊，都可以管理Hadoop、Hive、Pig了。但后面接触到Hive和Pig的时候，发现他们好像只跟MapReduce有关系啊，因此，我不禁有了以下的疑问。博客原文地址<a href="http://www.wangjialong.cc/2017/09/29/zookeeper1/#more" target="_blank" rel="external">Zookeeper是动物管理员吗</a></p>
 <a id="more"></a>
 <h1 id="Zookeeper到底是不是动物管理员？"><a href="#Zookeeper到底是不是动物管理员？" class="headerlink" title="Zookeeper到底是不是动物管理员？"></a>Zookeeper到底是不是动物管理员？</h1><p>这个问题的答案可以从Zookeeper的的官网标志图初探端倪。</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
+<p><img src="/image/17-9-29/93495054.jpg" alt="Zookeeper slogan"></p>
 <p>由上图，Zookeeper是一个穿着工装，拿着铁锹的工人啊，这不符合管理员的形象吧，管理员不应该是西装革履的吗？好吧，有些牵强，那我们来看看keeper这个词的翻译，使用百度在线翻译的结果如下：</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-9-29/36748004.jpg" alt=""></p>
+<p><img src="/image/17-9-29/36748004.jpg" alt=""></p>
 <p>门将是什么鬼？ 还好下面还有翻译，饲养员、保管人、负责人、监护人。这几个词好像都跟管理员有一些差距，有了初步的认识后，是时候深入Zookeeper的原理来进行分析了。</p>
 <h1 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h1><p>这里我只做简单的介绍，更加详细的内容可以参看最后的参考博客。</p>
 <h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p>Zookeeper中的角色主要分类如下表</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/22845559.jpg" alt="zookeeper roles"></p>
+<p><img src="/image/17-9-29/22845559.jpg" alt="zookeeper roles"></p>
 <ul>
 <li>注意：zkServer默认存在Observer角色，具体配置参看<a href="http://zookeeper.apache.org/doc/trunk/zookeeperObservers.html" target="_blank" rel="external">ZooKeeper Observers</a></li>
 </ul>
 <p>集群模型如下:</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-18/13063958.jpg" alt="zookeeper service"></p>
+<p><img src="/image/17-9-29/13063958.jpg" alt="zookeeper service"></p>
 <p>结合角色说明表格和上图进行说明，Hadoop中使用Zookeeper的组件如YARN和HBase，都是上图中的client，client通过与server进行连接获取Zookeeper server的服务。那么通过什么方式连接呢？</p>
 <h2 id="会话-session"><a href="#会话-session" class="headerlink" title="会话(session)"></a>会话(session)</h2><p>会话记录client与server的连接，client不需要连接所有的server，只需要连接其中一个就可以获得一致性的读写服务。session对应到两种连接方式：心跳连接和watcher监听。</p>
 <h2 id="数据节点"><a href="#数据节点" class="headerlink" title="数据节点"></a>数据节点</h2><p>上一节中说的一致性读写服务所操作的对象就是数据节点。Zookeeper的数据模型如下图：</p>
-<p><img src="http://www.wuzesheng.com/wp-content/uploads/2013/12/zookeeper-tree.jpg" alt="image"></p>
+<p><img src="/image/17-9-29/zookeeper-tree.jpg" alt="image"></p>
 <p>ZooKeeper数据模型的结构与Unix文件系统很类似，整体上可以看作是一棵树，每个节点称做一个ZNode。每个ZNode都可以通过其路径唯一标识，图中每个节点左侧即为其路径唯一标识。</p>
 <p>注：<br>这里的ZNode可以理解成既是Unix里的文件，又是Unix里的目录。因为每个ZNode不仅本身可以写数据（相当于Unix里的文件），还可以有下一级文件或目录（相当于Unix里的目录）。</p>
 <p>在ZooKeeper中，ZNode可以分为持久节点和临时节点两类。</p>
@@ -1743,7 +1743,7 @@
 <p>当HBase启动时，每个RegionServer都会到ZooKeeper的/hbase/rs节点下创建一个信息节点（临时节点，下文中，我们称该节点为”rs状态节点”），例如/hbase/rs/[Hostname]，同时，HMaster会对这个节点注册监听。当某个 RegionServer 挂掉的时候，ZooKeeper会因为在一段时间内无法接受其心跳（即 Session 失效），而删除掉该 RegionServer 服务器对应的 rs 状态节点。与此同时，HMaster 则会接收到 ZooKeeper 的 NodeDelete 通知，从而感知到某个节点断开，并立即开始容错工作。也就是说，Zookeeper是通过心跳机制来维护临时节点信息的，如果心跳发生了timeout，则Zookeeper删除该临时节点，然后通知注册过该临时节点监听的HMaster，所以Zookeeper默认临时节点删除后，该RegionServer处于无法工作状态，至于是网络延时原因还是该RegionServer确实挂掉了，Zookeeper不管。</p>
 <h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>Zookeeper在Hadoop生态中十分重要，但它并没有上升到管理员的高度，Hadoop中使用Zookeeper服务的组件都有自己的master（NameNode、ResourManager、HMaster），各组件视自己的需求，交付给Zookeeper不同程度的权力。NameNode在实现HA的时候，需要用到Zookeeper的选举和watcher功能，因此交付给Zookeeper两个NameNode，让它来决定谁为Active；YARN的HA也是如此。HMaster交给Zookeeper的权力比较大，HMaster选举与主备切换、系统容错、RootRegion管理、Region状态管理和分布式SplitWAL任务管理等都交给了Zookeeper，让Zookeeper来管理HMaster的主备以及RegionServer信息等。Zookeeper相当于是古代的丞相，皇帝（NameNode、HMaster）给它多少权力，它就执行多大的功能。或许有一天，Zookeeper会成为Hadoop生态的“管仲”、“商鞅”，而那一天会不会实现，就要看Hadoop生态的发展了。。。</p>
 <h1 id="参考博客"><a href="#参考博客" class="headerlink" title="参考博客"></a>参考博客</h1><ul>
-<li><a href="http://www.wangjialong.cc/2017/09/27/etcd&amp;zookeeper/" target="_blank" rel="external">Zookeeper与etcd的对比</a></li>
+<li><a href="http://zaixiandemiao.github.io/2017/09/27/etcd&amp;zookeeper/">Zookeeper与etcd的对比</a></li>
 <li><a href="http://linbingdong.com/2017/01/10/ZooKeeper原理及其在Hadoop和HBase中的应用/" target="_blank" rel="external">ZooKeeper原理及其在Hadoop和HBase中的应用</a></li>
 <li><a href="http://cailin.iteye.com/blog/2014486" target="_blank" rel="external">Zookeeper原理</a></li>
 </ul>

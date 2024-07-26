@@ -4,6 +4,30 @@
 
     
   <url>
+    <loc>https://zaixiandemiao.github.io/2017/09/29/zookeeper1/</loc>
+    <lastmod>2024-07-26T15:47:18.713Z</lastmod>
+    <data>
+        <display>
+        <title>Zookeeper是动物管理员吗</title>
+        <pubTime>2017-09-28T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>zookeeper</tag>
+         
+        <tag>HBase</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>https://zaixiandemiao.github.io/2017/10/10/shuffle/</loc>
     <lastmod>2024-07-26T15:40:22.100Z</lastmod>
     <data>
@@ -259,30 +283,6 @@
         <tag>zookeeper</tag>
          
         <tag>etcd</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://zaixiandemiao.github.io/2017/09/29/zookeeper1/</loc>
-    <lastmod>2018-01-20T02:05:29.193Z</lastmod>
-    <data>
-        <display>
-        <title>Zookeeper是动物管理员吗</title>
-        <pubTime>2017-09-28T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>zookeeper</tag>
-         
-        <tag>HBase</tag>
          
          
            
