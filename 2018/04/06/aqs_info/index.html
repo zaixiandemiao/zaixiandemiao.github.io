@@ -89,12 +89,12 @@
 <meta property="og:site_name" content="记忆碎片">
 <meta property="og:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-6/46576757.jpg">
-<meta property="og:updated_time" content="2018-04-09T08:46:21.443Z">
+<meta property="og:image" content="https://zaixiandemiao.github.io/image/18-4-6/46576757.jpg">
+<meta property="og:updated_time" content="2024-07-26T15:18:40.952Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="AQS（AbstractQueuedSynchronizer）源码解析">
 <meta name="twitter:description" content="前言java.util.concurrent包（之后简称JUC包）中，提供了大量的同步与并发的工具类，是多线程编程的“利器”。其中locks包下，包含了多种锁，如ReentrantLock独占锁、ReentrantReadWriteLock读写锁、Semaphore信号量（共享锁）等，而这些锁有一个共同的基础类：AbstractQueuedSynchronizer。">
-<meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/18-4-6/46576757.jpg">
+<meta name="twitter:image" content="https://zaixiandemiao.github.io/image/18-4-6/46576757.jpg">
 
 
 
@@ -478,7 +478,7 @@
 <p>tryRelease方法的源码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment">// 将state设置为0，解锁</span></div><div class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">boolean</span> <span class="title">tryRelease</span><span class="params">(<span class="keyword">int</span> releases)</span> </span>&#123;</div><div class="line">   <span class="keyword">assert</span> releases == <span class="number">1</span>; <span class="comment">// Otherwise unused</span></div><div class="line">   <span class="keyword">if</span> (getState() == <span class="number">0</span>) <span class="keyword">throw</span> <span class="keyword">new</span> IllegalMonitorStateException();</div><div class="line">   setExclusiveOwnerThread(<span class="keyword">null</span>);</div><div class="line">   setState(<span class="number">0</span>);</div><div class="line">   <span class="keyword">return</span> <span class="keyword">true</span>;</div><div class="line"> &#125;</div></pre></td></tr></table></figure></p>
 <p>由源码可知，tryRelease只需要将state设置为0即可，因为调用unlock方法的必定是之前调用lock成功的，因此当前state必定为1，为安全起见，使用getState判断是否为0，若为0，说明线程出错。state设置时，不需要调用CAS方法，只需要setState即可，保证write对于其他线程可见即可（通过volatile内存屏障保证）。</p>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>AQS提供了一个框架，在其上可以构建丰富的线程同步工具类，JUC包中ReadWriteLock、CountDownLatch都是基于AQS实现的，AQS在JUC包中的地位相当重要。其类图如下：</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/18-4-6/46576757.jpg" alt=""></p>
+<p><img src="/image/18-4-6/46576757.jpg" alt=""></p>
 <blockquote>
 <p>盗图使用,详见<a href="http://www.cnblogs.com/skywang12345/p/3496098.html" target="_blank" rel="external">“JUC锁”01之 框架</a></p>
 </blockquote>
