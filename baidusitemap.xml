@@ -4,6 +4,122 @@
 
     
   <url>
+    <loc>https://zaixiandemiao.github.io/2017/10/10/shuffle/</loc>
+    <lastmod>2024-07-26T15:40:22.100Z</lastmod>
+    <data>
+        <display>
+        <title>MapReduce中的shuffle详解</title>
+        <pubTime>2017-10-09T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>MapReduce</tag>
+         
+        <tag>shuffle</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://zaixiandemiao.github.io/2017/10/20/hdfs_structer/</loc>
+    <lastmod>2024-07-26T15:38:31.645Z</lastmod>
+    <data>
+        <display>
+        <title>HDFS永久性数据结构</title>
+        <pubTime>2017-10-19T16:00:00.000Z</pubTime>
+        
+        <tag>hadoop</tag>
+         
+        <tag>hdfs目录结构</tag>
+         
+         
+           
+             
+              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://zaixiandemiao.github.io/2017/11/04/java_collection/</loc>
+    <lastmod>2024-07-26T15:36:41.517Z</lastmod>
+    <data>
+        <display>
+        <title>Collection简介</title>
+        <pubTime>2017-11-03T16:00:00.000Z</pubTime>
+        
+        <tag>Java</tag>
+         
+        <tag>Collection</tag>
+         
+         
+           
+             
+              <breadCrumb title="Java" url="https://zaixiandemiao.github.io/categories/Java/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://zaixiandemiao.github.io/2017/11/07/cgroups_info/</loc>
+    <lastmod>2024-07-26T15:35:32.566Z</lastmod>
+    <data>
+        <display>
+        <title>cgroups资源限制</title>
+        <pubTime>2017-11-06T16:00:00.000Z</pubTime>
+        
+        <tag>Linux</tag>
+         
+        <tag>Docker</tag>
+         
+        <tag>cgroups</tag>
+         
+         
+           
+             
+              <breadCrumb title="Linux" url="https://zaixiandemiao.github.io/categories/Linux/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
+    <loc>https://zaixiandemiao.github.io/2017/12/19/TreeMap_info/</loc>
+    <lastmod>2024-07-26T15:31:02.403Z</lastmod>
+    <data>
+        <display>
+        <title>TreeMap源码阅读</title>
+        <pubTime>2017-12-18T16:00:00.000Z</pubTime>
+        
+        <tag>Java</tag>
+         
+        <tag>Collection</tag>
+         
+        <tag>TreeMap</tag>
+         
+         
+           
+             
+              <breadCrumb title="Java" url="https://zaixiandemiao.github.io/categories/Java/"/>
+          
+        </display>
+    </data>
+    </url>
+
+    
+  <url>
     <loc>https://zaixiandemiao.github.io/2018/01/04/sentry_authorize/</loc>
     <lastmod>2024-07-26T15:29:44.845Z</lastmod>
     <data>
@@ -203,30 +319,6 @@
 
     
   <url>
-    <loc>https://zaixiandemiao.github.io/2017/12/19/TreeMap_info/</loc>
-    <lastmod>2018-01-20T02:03:40.309Z</lastmod>
-    <data>
-        <display>
-        <title>TreeMap源码阅读</title>
-        <pubTime>2017-12-18T16:00:00.000Z</pubTime>
-        
-        <tag>Java</tag>
-         
-        <tag>Collection</tag>
-         
-        <tag>TreeMap</tag>
-         
-         
-           
-             
-              <breadCrumb title="Java" url="https://zaixiandemiao.github.io/categories/Java/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
     <loc>https://zaixiandemiao.github.io/2018/01/18/atomicXFieldHelper/</loc>
     <lastmod>2018-01-20T01:55:59.345Z</lastmod>
     <data>
@@ -244,30 +336,6 @@
            
              
               <breadCrumb title="Java" url="https://zaixiandemiao.github.io/categories/Java/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://zaixiandemiao.github.io/2017/11/07/cgroups_info/</loc>
-    <lastmod>2017-12-19T12:13:13.775Z</lastmod>
-    <data>
-        <display>
-        <title>cgroups资源限制</title>
-        <pubTime>2017-11-06T16:00:00.000Z</pubTime>
-        
-        <tag>Linux</tag>
-         
-        <tag>Docker</tag>
-         
-        <tag>cgroups</tag>
-         
-         
-           
-             
-              <breadCrumb title="Linux" url="https://zaixiandemiao.github.io/categories/Linux/"/>
           
         </display>
     </data>
@@ -369,28 +437,6 @@
 
     
   <url>
-    <loc>https://zaixiandemiao.github.io/2017/11/04/java_collection/</loc>
-    <lastmod>2017-11-04T15:42:16.000Z</lastmod>
-    <data>
-        <display>
-        <title>Collection简介</title>
-        <pubTime>2017-11-03T16:00:00.000Z</pubTime>
-        
-        <tag>Java</tag>
-         
-        <tag>Collection</tag>
-         
-         
-           
-             
-              <breadCrumb title="Java" url="https://zaixiandemiao.github.io/categories/Java/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
     <loc>https://zaixiandemiao.github.io/2017/11/01/linux_namespace/</loc>
     <lastmod>2017-11-01T11:49:34.000Z</lastmod>
     <data>
@@ -437,28 +483,6 @@
 
     
   <url>
-    <loc>https://zaixiandemiao.github.io/2017/10/20/hdfs_structer/</loc>
-    <lastmod>2017-10-24T12:04:14.000Z</lastmod>
-    <data>
-        <display>
-        <title>HDFS永久性数据结构</title>
-        <pubTime>2017-10-19T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>hdfs目录结构</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
     <loc>https://zaixiandemiao.github.io/2017/10/19/vmware_addDisk/</loc>
     <lastmod>2017-10-24T12:04:00.000Z</lastmod>
     <data>
@@ -476,30 +500,6 @@
            
              
               <breadCrumb title="运维" url="https://zaixiandemiao.github.io/categories/%E8%BF%90%E7%BB%B4/"/>
-          
-        </display>
-    </data>
-    </url>
-
-    
-  <url>
-    <loc>https://zaixiandemiao.github.io/2017/10/10/shuffle/</loc>
-    <lastmod>2017-10-24T12:03:44.000Z</lastmod>
-    <data>
-        <display>
-        <title>MapReduce中的shuffle详解</title>
-        <pubTime>2017-10-09T16:00:00.000Z</pubTime>
-        
-        <tag>hadoop</tag>
-         
-        <tag>MapReduce</tag>
-         
-        <tag>shuffle</tag>
-         
-         
-           
-             
-              <breadCrumb title="hadoop" url="https://zaixiandemiao.github.io/categories/hadoop/"/>
           
         </display>
     </data>

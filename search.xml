@@ -583,7 +583,7 @@
       <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>TreeMap算是要分析的Map家族中的最后一个成员了，它是AbstractMap的子类，并实现了NavigableMap接口，是Map家族中比较特殊的，支持元素排序插入的Map集合类。博客原文地址<a href="http://www.wangjialong.cc/2017/12/19/TreeMap_info/#more" target="_blank" rel="external">TreeMap源码阅读</a></p>
 <a id="more"></a>
 <h1 id="TreeMap简介"><a href="#TreeMap简介" class="headerlink" title="TreeMap简介"></a>TreeMap简介</h1><p>TreeMap的类图如下：</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-12-18/6367000.jpg" alt=""></p>
+<p><img src="/image/17-12-18/6367000.jpg" alt=""></p>
 <ul>
 <li>虚线箭头代表的是实现接口；实线箭头代表的是继承关系</li>
 </ul>
@@ -1057,7 +1057,7 @@
 <li><strong>hierarchy(层级)</strong>：由一系列cgroup以树状结构排列而成，每个层级绑定子系统进行资源控制。层级中cgroup节点可以有0或多个子节点，子节点继承父节点的子系统。整个操作系统有多个层级。</li>
 </ul>
 <h1 id="cgroups的组织结构和基本规则"><a href="#cgroups的组织结构和基本规则" class="headerlink" title="cgroups的组织结构和基本规则"></a>cgroups的组织结构和基本规则</h1><p>前面说到cgroup是一个树状结构，但系统中多个cgroup构成的并非一个单根结构，而是可以存在多个，最终构成了一个cgroup森林。这样做的目的是，如果只有一个层级，则所有的任务都将被迫绑定其上的所有子系统，这会给某些人物带来不必要的限制。在Docker中，每个子系统独自构成一个层级，这样做非常易于管理。组织结构图如下：</p>
-<p><img src="http://ww1.sinaimg.cn/mw690/aa213e02jw1eup8axdxb5j21fp1hs465.jpg" alt="image"></p>
+<p><img src="/image/17-11-07/3982f44c.png" alt=""></p>
 <p>上面这个图从整体结构上描述了进程与 cgroups 之间的关系。最下面的P代表一个进程。每一个进程的描述符中有一个指针指向了一个辅助数据结构css_set（cgroups subsystem set）。 指向某一个css_set的进程会被加入到当前css_set的进程链表中。一个进程只能隶属于一个css_set，一个css_set可以包含多个进程，隶属于同一css_set的进程受到同一个css_set所关联的资源限制。</p>
 <p>上图中的”M×N Linkage”说明的是css_set通过辅助数据结构可以与 cgroups 节点进行多对多的关联。但是 cgroups 的实现不允许css_set同时关联同一个cgroups层级结构下多个节点。 这是因为 cgroups 对同一种资源不允许有多个限制配置。</p>
 <p>一个css_set关联多个 cgroups 层级结构的节点时，表明需要对当前css_set下的进程进行多种资源的控制。而一个 cgroups 节点关联多个css_set时，表明多个css_set下的进程列表受到同一份资源的相同限制。</p>
@@ -1118,7 +1118,7 @@
 <a id="more"></a>
 <h1 id="Collection体系综述"><a href="#Collection体系综述" class="headerlink" title="Collection体系综述"></a>Collection体系综述</h1><p>阅读源码首先得有一个总体的结构认识，不然直接一头扎到类中的每个方法实现细节，只能是盲人摸象，摸到啥算啥。因此，我决定从Java SE 1.8的官方API入手，先梳理Collection这个核心接口，搞清楚它的父接口、子接口以及实现类，形成一个宏观的认识，然后再对它的子接口及其实现类分模块进行梳理，相信会对之后的阅读有一个引导作用。</p>
 <p>Collection接口的关系图如下：</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-11-4/24208556.jpg" alt=""></p>
+<p><img src="/image/11-11-4/24208556.jpg" alt=""></p>
 <ul>
 <li>上图中菱形代表的是接口，矩形代表的是类，箭头所指的方向为父类或父接口</li>
 </ul>
@@ -1510,7 +1510,7 @@
 <li>定期合并edits和fsimage文件，防止NameNode故障重启时，由于fsimage长时间没有同步，执行edits的恢复操作很耗时。</li>
 </ul>
 <p>Secondary NameNode的工作步骤如下图所示</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-10-16/61956212.jpg" alt=""></p>
+<p><img src="/image/17-10-16/61956212.jpg" alt=""></p>
 <ol>
 <li>SecondaryNameNode通知NameNode准备提交edits文件，此时主节点将新的写操作数据记录到一个新的文件edits.new中。</li>
 <li>SecondaryNameNode通过HTTP GET方式获取NameNode的fsimage与edits文件（在SecondaryNameNode的current同级目录下可见到 temp.check-point或者previous-checkpoint目录，这些目录中存储着从namenode拷贝来的镜像文件）。</li>
@@ -1612,7 +1612,7 @@
       <url>/2017/10/10/shuffle/</url>
       <content type="html"><![CDATA[<h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>shuffle在某些情况下，表达的意义为reduce任务获取map输出的这部分过程，也就是通常意义上的“map-shuffle-reduce”。如果是这种情况下，shuffle表示的是将map输出的键值对，按照key值进行了一个groupby操作，最后得到&lt; key, list[key] &gt;的过程。而在这里，shuffle包含了从map输出到reducer的整个过程，包括了写入磁盘、分区、排序等步骤，有利于理解工作机制，优化MapReduce程序。</p>
 <a id="more"></a>
-<h1 id="shuffle简述"><a href="#shuffle简述" class="headerlink" title="shuffle简述"></a>shuffle简述</h1><p><img src="http://ow9czedj7.bkt.clouddn.com/17-10-9/56739194.jpg" alt="shuffle"></p>
+<h1 id="shuffle简述"><a href="#shuffle简述" class="headerlink" title="shuffle简述"></a>shuffle简述</h1><p><img src="/image/17-10-10/shuffle.jpg" alt=""></p>
 <p>由上图(<em>引用自<a href="http://www.cnblogs.com/yangyquin/p/5021234.html" target="_blank" rel="external">shuffle和排序</a></em>)所示，shuffle是一个横跨map task 和reduce task的过程，它是map 和 reduce的一个数据桥梁，负责将map输出作为输入传给reducer。在map端包括了写入缓冲区，溢出到磁盘，分区与排序等步骤；在reduce端则包括了复制数据、归并数据、reduce阶段等步骤。</p>
 <h1 id="map端"><a href="#map端" class="headerlink" title="map端"></a>map端</h1><p>map函数产生输出时，出于效率的原因并不会直接写入硬盘，而是先放到一个环形内存缓存区中，并将缓存的数据按照key值进行一个预排序。缓冲区默认为100MB，该值可以通过io.sort.mb属性来调整。一旦达到阈值(io.sort.spill.percent, 默认为0.8)，则后台进程开始将内容溢出到磁盘。溢出过程中，map输出仍写入缓冲区，在此期间缓冲区被填满，则会将map阻塞，知道该溢出过程结束。</p>
 <p>每个溢出过程都会产生一个文件存到mapred.local.dir属性指定的目录中，在上图中，共产生了三个溢出到磁盘的文件。在溢出到磁盘之前，会根据reducer的数量划分分区，如图中共划分了3个分区，每个分区中，都按键进行内排序，如果指定了combiner，则在排序后的输出上进行，以减少写到磁盘和传递给reducer的数据。上图中每个溢出文件都有3个分区，每个分区内数据都是排好序的。</p>

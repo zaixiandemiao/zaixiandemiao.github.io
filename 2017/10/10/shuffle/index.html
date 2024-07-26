@@ -89,12 +89,12 @@
 <meta property="og:site_name" content="记忆碎片">
 <meta property="og:description" content="前言shuffle在某些情况下，表达的意义为reduce任务获取map输出的这部分过程，也就是通常意义上的“map-shuffle-reduce”。如果是这种情况下，shuffle表示的是将map输出的键值对，按照key值进行了一个groupby操作，最后得到&amp;lt; key, list[key] &amp;gt;的过程。而在这里，shuffle包含了从map输出到reducer的整个过程，包括了写入磁盘">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/17-10-9/56739194.jpg">
-<meta property="og:updated_time" content="2017-10-24T12:03:44.000Z">
+<meta property="og:image" content="https://zaixiandemiao.github.io/image/17-10-10/shuffle.jpg">
+<meta property="og:updated_time" content="2024-07-26T15:40:22.100Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="MapReduce中的shuffle详解">
 <meta name="twitter:description" content="前言shuffle在某些情况下，表达的意义为reduce任务获取map输出的这部分过程，也就是通常意义上的“map-shuffle-reduce”。如果是这种情况下，shuffle表示的是将map输出的键值对，按照key值进行了一个groupby操作，最后得到&amp;lt; key, list[key] &amp;gt;的过程。而在这里，shuffle包含了从map输出到reducer的整个过程，包括了写入磁盘">
-<meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/17-10-9/56739194.jpg">
+<meta name="twitter:image" content="https://zaixiandemiao.github.io/image/17-10-10/shuffle.jpg">
 
 
 
@@ -362,7 +362,7 @@
       
         <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>shuffle在某些情况下，表达的意义为reduce任务获取map输出的这部分过程，也就是通常意义上的“map-shuffle-reduce”。如果是这种情况下，shuffle表示的是将map输出的键值对，按照key值进行了一个groupby操作，最后得到&lt; key, list[key] &gt;的过程。而在这里，shuffle包含了从map输出到reducer的整个过程，包括了写入磁盘、分区、排序等步骤，有利于理解工作机制，优化MapReduce程序。</p>
 <a id="more"></a>
-<h1 id="shuffle简述"><a href="#shuffle简述" class="headerlink" title="shuffle简述"></a>shuffle简述</h1><p><img src="http://ow9czedj7.bkt.clouddn.com/17-10-9/56739194.jpg" alt="shuffle"></p>
+<h1 id="shuffle简述"><a href="#shuffle简述" class="headerlink" title="shuffle简述"></a>shuffle简述</h1><p><img src="/image/17-10-10/shuffle.jpg" alt=""></p>
 <p>由上图(<em>引用自<a href="http://www.cnblogs.com/yangyquin/p/5021234.html" target="_blank" rel="external">shuffle和排序</a></em>)所示，shuffle是一个横跨map task 和reduce task的过程，它是map 和 reduce的一个数据桥梁，负责将map输出作为输入传给reducer。在map端包括了写入缓冲区，溢出到磁盘，分区与排序等步骤；在reduce端则包括了复制数据、归并数据、reduce阶段等步骤。</p>
 <h1 id="map端"><a href="#map端" class="headerlink" title="map端"></a>map端</h1><p>map函数产生输出时，出于效率的原因并不会直接写入硬盘，而是先放到一个环形内存缓存区中，并将缓存的数据按照key值进行一个预排序。缓冲区默认为100MB，该值可以通过io.sort.mb属性来调整。一旦达到阈值(io.sort.spill.percent, 默认为0.8)，则后台进程开始将内容溢出到磁盘。溢出过程中，map输出仍写入缓冲区，在此期间缓冲区被填满，则会将map阻塞，知道该溢出过程结束。</p>
 <p>每个溢出过程都会产生一个文件存到mapred.local.dir属性指定的目录中，在上图中，共产生了三个溢出到磁盘的文件。在溢出到磁盘之前，会根据reducer的数量划分分区，如图中共划分了3个分区，每个分区中，都按键进行内排序，如果指定了combiner，则在排序后的输出上进行，以减少写到磁盘和传递给reducer的数据。上图中每个溢出文件都有3个分区，每个分区内数据都是排好序的。</p>

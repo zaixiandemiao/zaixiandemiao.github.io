@@ -89,12 +89,12 @@
 <meta property="og:site_name" content="记忆碎片">
 <meta property="og:description" content="前言本文主要讲解了HDFS是如何在磁盘上组织永久性数据的，主要从NameNode、Secondary NameNode和DataNode的目录结构以及fsimage和edits文件几个方面进行介绍，了解这些文件的用法有助于进行故障诊断和故障检出。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="http://ow9czedj7.bkt.clouddn.com/17-10-16/61956212.jpg">
-<meta property="og:updated_time" content="2017-10-24T12:04:14.000Z">
+<meta property="og:image" content="https://zaixiandemiao.github.io/image/17-10-16/61956212.jpg">
+<meta property="og:updated_time" content="2024-07-26T15:38:31.645Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="HDFS永久性数据结构">
 <meta name="twitter:description" content="前言本文主要讲解了HDFS是如何在磁盘上组织永久性数据的，主要从NameNode、Secondary NameNode和DataNode的目录结构以及fsimage和edits文件几个方面进行介绍，了解这些文件的用法有助于进行故障诊断和故障检出。">
-<meta name="twitter:image" content="http://ow9czedj7.bkt.clouddn.com/17-10-16/61956212.jpg">
+<meta name="twitter:image" content="https://zaixiandemiao.github.io/image/17-10-16/61956212.jpg">
 
 
 
@@ -387,7 +387,7 @@
 <li>定期合并edits和fsimage文件，防止NameNode故障重启时，由于fsimage长时间没有同步，执行edits的恢复操作很耗时。</li>
 </ul>
 <p>Secondary NameNode的工作步骤如下图所示</p>
-<p><img src="http://ow9czedj7.bkt.clouddn.com/17-10-16/61956212.jpg" alt=""></p>
+<p><img src="/image/17-10-16/61956212.jpg" alt=""></p>
 <ol>
 <li>SecondaryNameNode通知NameNode准备提交edits文件，此时主节点将新的写操作数据记录到一个新的文件edits.new中。</li>
 <li>SecondaryNameNode通过HTTP GET方式获取NameNode的fsimage与edits文件（在SecondaryNameNode的current同级目录下可见到 temp.check-point或者previous-checkpoint目录，这些目录中存储着从namenode拷贝来的镜像文件）。</li>
