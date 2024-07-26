@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>https://zaixiandemiao.github.io/2017/10/19/vmware_addDisk/</loc>
+    
+    <lastmod>2024-07-26T15:57:41.079Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>https://zaixiandemiao.github.io/2017/09/14/private_yum/</loc>
     
     <lastmod>2024-07-26T15:54:41.760Z</lastmod>
@@ -159,13 +166,6 @@
     <loc>https://zaixiandemiao.github.io/2017/10/31/etcd_install/</loc>
     
     <lastmod>2017-10-31T11:24:30.000Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>https://zaixiandemiao.github.io/2017/10/19/vmware_addDisk/</loc>
-    
-    <lastmod>2017-10-24T12:04:00.000Z</lastmod>
     
   </url>
   
