@@ -426,14 +426,14 @@
 <p>如果一个集群有1000个磁盘，一年中将会有20个出现故障或者说每两周会有一个故障发生。如果有2000个磁盘，你将每周都会有故障发生，如果有4000个，将每周会有两次错误发生。两年的使用之后，你将把这个数字乘以4，也就是说，一个1000个磁盘的集群每周会有两次故障发生。</p>
 <p>事实上，在一个确定的量级，你的MPP系统将总会有一个节点的磁盘队列出现问题，这将导致该节点的性能降低，从而像上面所说的那样限制整个集群的性能。这也是为什么在这个世界上没有一个MPP集群是超过50个节点服务器的。</p>
 <p>MPP和批处理方案如MapReduce之间有一个更重要的不同就是并发度。并发度就是同一时刻可以高效运行的查询数。MPP是完美对称的，当查询运行的时候，集群中每个节点并发的执行同一个任务。这也就意味着MPP集群的并发度和集群中节点的数量是完全没有关系的。比如说，4个节点的集群和400个节点的集群将支持同一级别的并发度，而且他们性能下降的点基本上是同样。下面是我所说情况的一个例子。</p>
-<p><img src="/image/18-1-9/4237473.jpg" alt=""></p>
+<p><img src="/image/18-1-8/4237473.jpg" alt=""></p>
 <p>正如你所见，10-18个并行查询会话产生了整个集群最大的吞吐量。如果你将会话数提高到20个以上的时候，吞吐量将慢慢下降到70%甚至更低。在此声明，吞吐量是在一个固定的时间区间内(时间足够长以产生一个代表性的结果)，执行的相同种类的查询任务的数量。<a href="https://hortonworks.com/blog/impala-vs-hive-performance-benchmark/" target="_blank" rel="external">Yahoo团队</a>调查Impala并发度限制时产生了一个相似的测试结果。Impala是一个基于Hadoop的MPP引擎。因此从根本上来说，较低的并发度是MPP方案必须承担的以提供它的低查询延迟和高数据处理速度。</p>
 <h2 id="批处理架构"><a href="#批处理架构" class="headerlink" title="批处理架构"></a>批处理架构</h2><p>为了解决这个问题，伴随着<a href="http://static.googleusercontent.com/media/research.google.com/en//archive/mapreduce-osdi04.pdf" target="_blank" rel="external">MapReduce论文</a>的发表和其衍生技术的出现，一种新的解决方案诞生。这种设计原则被应用到了<a href="https://hadoop.apache.org/docs/r1.2.1/mapred_tutorial.html" target="_blank" rel="external">Apache Hadoop MapReduce</a>，<a href="http://spark.apache.org/" target="_blank" rel="external">Apache Spark</a>以及其他的工具上。主要的思想是将两个同步点之间的每个单个的执行阶段(“step”)，切分为一系列的独立的”tasks”，”tasks”的数目跟”exexutors”的数量完全没有相关性。比如说，HDFS上，MapReduce的”tasks”数目等于输入文件切片的数量，也就是说等于输入文件所对应的HDFS block数量(单个节点上)。在同步点之间，这些”tasks”被随机的分配在空闲的”executors”上。与此相反，MPP上每个处理数据的task被绑定到持有该数据切片的指定executor上。MapReduce的同步点执行Job的启动，shuffle，和job的停止。对于Apache Spark来说，同步点执行的是Job的启动，shuffle，缓存数据集(dataset)，和Job的停止。下图是Apache Spark工作的一个实例，每个不同颜色的bar代表了不同的task，每个executor可以并行的执行3个tasks。</p>
-<p><img src="/image/18-1-9/55097613.jpg" alt=""></p>
+<p><img src="/image/18-1-8/55097613.jpg" alt=""></p>
 <p>你可以看到Executor 3是一个故障节点——它执行task的时间大约是其他Executor的两倍慢。但这不是一个问题，Executor 3会慢慢分配到更少的task执行。如果这个问题更加的严重，<a href="https://en.wikipedia.org/wiki/Speculative_execution" target="_blank" rel="external">推测执行</a>将会起作用，速度慢的节点上的task将会在其他节点上重新执行(<em>MapReduce的机制之一，若某个task执行时间过长，会在其他节点上重新运行该task，取最先执行结束的task的结果</em>)。</p>
 <p>这项技术(推测执行)之所以可以实施是因为使用了共享存储。为了处理一块数据，你不需要将这块数据存储在你指定的机器上。相反，你可以从远程节点上获取需要的数据块。当然，远程处理相对于本地来说总是更加昂贵的，因为数据需要移动，所以机器节点尽可能的在本地处理数据。但是为了防止故障节点和完成批处理过程，推测执行将解决故障节点的问题，这在MPP中是完全无法解决的。</p>
 <p>这里有个云端执行推测执行的<a href="https://www.usenix.org/legacy/event/osdi08/tech/full_papers/zaharia/zaharia.pdf" target="_blank" rel="external">研究</a>.</p>
-<p><img src="/image/18-1-9/22349184.jpg" alt=""></p>
+<p><img src="/image/18-1-8/22349184.jpg" alt=""></p>
 <p>这张图表是关于WordCount程序性能的。正如你所见的，在云环境下，推测执行将执行速度加快了2.5倍之多，而云环境的<a href="http://blog.scalyr.com/2012/10/a-systematic-look-at-ec2-io/" target="_blank" rel="external">短板效应</a>是众所周知的。共享存储和更加细粒度的调度(task）)两种技术的结合使得批处理系统比MPP集群具有更好的可扩展性——可以支持上千个节点和上万个HDD。</p>
 <h2 id="批处理架构的问题"><a href="#批处理架构的问题" class="headerlink" title="批处理架构的问题"></a>批处理架构的问题</h2><p>但是，每件事都是有代价的.MPP上，你不需要将中间数据写入HDD因为一个单一的Executor只处理一个单个的task，因此你可以简单地直接将数据stream到下一个执行阶段。这被叫作”pipelining”，它提供了很大的性能提升。</p>
 <blockquote>
@@ -444,7 +444,7 @@
 <h2 id="将MPP和Batch进行结合"><a href="#将MPP和Batch进行结合" class="headerlink" title="将MPP和Batch进行结合"></a>将MPP和Batch进行结合</h2><p>我们现在可以看到两个架构的优点和短板。MPP是更快的，但是有两个关键痛点——短板效应和并发限制。而对于像MapReduce这样的批处理系统，我们需要花费时间来存储中间数据到磁盘上，但与此同时，我们获得了更高的扩展度而因此可以获得远远大于MPP的集群规模。我们如何才能将两者结合来获得MPP低延迟和高速处理，使用batch-like的设计来降低短板效应和并发度低的问题？我想如果我告诉你答案是新的Apache HAWQ的架构你是不会惊讶的。</p>
 <p>再一次提出问题，MPP的查询是如何执行的？通过一定数量的平行执行的进程运行完全相同的代码，进程数目和集群的节点数量是完全一致的，在每个节点上处理本地数据。但是，当我们介绍HDFS的时候，你不会把数据和本地Executor绑定在一起，这也就意味着你可以摆脱Executor数目的限制，你也就不需要在固定的节点上处理本地存在的数据(在传统MPP上，你不能处理远程节点的数据).为什么？因为HDFS默认对同样的block存储3个备份，也就意味着集群中至少有3个节点上，你可以选择创建一个Executor并处理本地的数据。并且，HDFS支持远程读取数据，也就意味着至少有两个机架上可以处理本地机架上的数据，这样就可以通过最少的拓扑数来远程获取数据。</p>
 <p>这也就是为什么Apache HAWQ提出了”virtual segments”的概念——GreenPlum中的”segment” 是改进版的PostgreSQL数据库中的一个单一实例，它在每个节点上存在一个，并且在每次查询中产生”executor”进程。如果你有一个小的查询，它可以被4个executors执行甚至是一个。如果你有一个大的查询，你可以用100个甚至1000个executor执行。每个查询仍然是以MPP风格对本地数据进行处理，而且不需要将中间数据写入到HDD上，但是”virtual segments”允许executor运行在任何地方。下面是它的一个工作示例图（不同颜色代表了不同的查询，虚线代表了查询中的shuffle操作）</p>
-<p><img src="/image/18-1-9/73954191.jpg" alt=""></p>
+<p><img src="/image/18-1-8/73954191.jpg" alt=""></p>
 <p>这赋予了你以下的特性：</p>
 <ol>
 <li>减轻MPP系统的短板问题：因为我们可以动态的添加节点和删除节点。因此，严重的磁盘故障将不会影响整个集群的性能，系统可以拥有比传统MPP更大量级的集群。现在，我们可以暂时的将一个故障节点从集群中移除，那么就不会有更多的executor在上面开始运行。并且，移除节点时不会有停机时间。</li>
